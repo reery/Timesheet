@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Timesheet app tests</title>
+  <style>
+    #appFrame {
+      display: block;
+      width: 390px;
+      height: 844px;
+      border: 0;
+    }
+  </style>
+</head>
+<body data-status="running">
+  <h1>Timesheet app tests</h1>
+  <pre id="results">Running...</pre>
+  <iframe id="appFrame" src="../index.html?storageKey=local-timesheet.test.integration.v1" title="Timesheet under test"></iframe>
+  <script src="app.test.js"></script>
+</body>
+</html>

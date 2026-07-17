@@ -1,0 +1,321 @@
+(function (root, factory) {
+  "use strict";
+
+  var core = root.TimesheetCore;
+  var api;
+
+  if (!core && typeof require === "function") {
+    core = require("./core.js");
+  }
+
+  api = factory(core, root);
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = api;
+  }
+
+  root.TimesheetStorage = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function (core, host) {
+  "use strict";
+
+  var STORAGE_KEY = "local-timesheet.state.v1";
+  var SCHEMA_VERSION = 1;
+  var BACKUP_FORMAT = "local-timesheet-backup";
+  var ENTRY_FIELDS = ["start", "finish", "breakStart", "breakFinish"];
+
+  function createEmptyState() {
+    return {
+      version: SCHEMA_VERSION,
+      entries: {},
+      schedules: {}
+    };
+  }
+
+  function isPlainObject(value) {
+    if (value === null || typeof value !== "object") {
+      return false;
+    }
+
+    return Object.getPrototypeOf(value) === Object.prototype
+      || Object.getPrototypeOf(value) === null;
+  }
+
+  function hasOwn(object, key) {
+    return Object.prototype.hasOwnProperty.call(object, key);
+  }
+
+  function cloneEntry(entry) {
+    var copy = {};
+
+    ENTRY_FIELDS.forEach(function (field) {
+      copy[field] = entry[field] || "";
+    });
+
+    return copy;
+  }
+
+  function cloneState(state) {
+    var copy = createEmptyState();
+
+    Object.keys(state.entries).forEach(function (dateKey) {
+      copy.entries[dateKey] = cloneEntry(state.entries[dateKey]);
+    });
+
+    Object.keys(state.schedules).forEach(function (monthKey) {
+      copy.schedules[monthKey] = Number(state.schedules[monthKey]);
+    });
+
+    return copy;
+  }
+
+  function validateState(candidate) {
+    var normalized = createEmptyState();
+    var invalidEntry;
+    var invalidSchedule;
+
+    if (!isPlainObject(candidate)) {
+      return invalid("The saved data is not an object.");
+    }
+
+    if (candidate.version !== SCHEMA_VERSION) {
+      return invalid("The saved data uses an unsupported version.");
+    }
+
+    if (!isPlainObject(candidate.entries) || !isPlainObject(candidate.schedules)) {
+      return invalid("The saved data has an invalid structure.");
+    }
+
+    Object.keys(candidate.entries).some(function (dateKey) {
+      var entry = candidate.entries[dateKey];
+      var normalizedEntry = {};
+
+      if (!core.parseIsoDate(dateKey) || !isPlainObject(entry)) {
+        invalidEntry = dateKey;
+        return true;
+      }
+
+      if (ENTRY_FIELDS.some(function (field) {
+        if (!hasOwn(entry, field) || typeof entry[field] !== "string" || entry[field].length > 20) {
+          return true;
+        }
+
+        normalizedEntry[field] = entry[field];
+        return false;
+      })) {
+        invalidEntry = dateKey;
+        return true;
+      }
+
+      normalized.entries[dateKey] = normalizedEntry;
+      return false;
+    });
+
+    if (invalidEntry) {
+      return invalid("The entry for " + invalidEntry + " is invalid.");
+    }
+
+    Object.keys(candidate.schedules).some(function (monthKey) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)
+          || !core.isValidWeeklyHours(candidate.schedules[monthKey])) {
+        invalidSchedule = monthKey;
+        return true;
+      }
+
+      normalized.schedules[monthKey] = Number(candidate.schedules[monthKey]);
+      return false;
+    });
+
+    if (invalidSchedule) {
+      return invalid("The schedule for " + invalidSchedule + " is invalid.");
+    }
+
+    return { valid: true, state: normalized, error: "" };
+  }
+
+  function invalid(message) {
+    return { valid: false, state: createEmptyState(), error: message };
+  }
+
+  function getBrowserStorage() {
+    try {
+      return host.localStorage;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function loadState(storage, storageKey) {
+    var raw;
+    var parsed;
+    var validation;
+    var key = storageKey || STORAGE_KEY;
+
+    if (!storage) {
+      return {
+        ok: false,
+        state: createEmptyState(),
+        message: "Browser storage is unavailable. Changes will not survive a reload."
+      };
+    }
+
+    try {
+      raw = storage.getItem(key);
+    } catch (error) {
+      return {
+        ok: false,
+        state: createEmptyState(),
+        message: "The saved timesheet could not be read. Changes will not survive a reload."
+      };
+    }
+
+    if (raw === null) {
+      return { ok: true, state: createEmptyState(), message: "" };
+    }
+
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      return {
+        ok: false,
+        state: createEmptyState(),
+        message: "The saved timesheet is corrupted. A blank view was opened without overwriting it."
+      };
+    }
+
+    validation = validateState(parsed);
+    if (!validation.valid) {
+      return {
+        ok: false,
+        state: createEmptyState(),
+        message: validation.error + " A blank view was opened without overwriting it."
+      };
+    }
+
+    return { ok: true, state: validation.state, message: "" };
+  }
+
+  function saveState(storage, state, storageKey) {
+    var validation = validateState(state);
+    var key = storageKey || STORAGE_KEY;
+
+    if (!storage) {
+      return { ok: false, message: "Browser storage is unavailable. This edit was not saved." };
+    }
+
+    if (!validation.valid) {
+      return { ok: false, message: validation.error + " This edit was not saved." };
+    }
+
+    try {
+      storage.setItem(key, JSON.stringify(validation.state));
+      return { ok: true, message: "Saved locally" };
+    } catch (error) {
+      return { ok: false, message: "Browser storage rejected this edit. It was not saved." };
+    }
+  }
+
+  function ensureMonthSchedule(state, monthKey) {
+    var value;
+
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)) {
+      throw new Error("Invalid month key.");
+    }
+
+    if (hasOwn(state.schedules, monthKey) && core.isValidWeeklyHours(state.schedules[monthKey])) {
+      return { changed: false, value: Number(state.schedules[monthKey]) };
+    }
+
+    value = core.getInheritedWeeklyHours(monthKey, state.schedules, core.DEFAULT_WEEKLY_HOURS);
+    state.schedules[monthKey] = value;
+    return { changed: true, value: value };
+  }
+
+  function serializeBackup(state, now) {
+    var validation = validateState(state);
+    var timestamp = now instanceof Date ? now : new Date();
+
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    return JSON.stringify({
+      format: BACKUP_FORMAT,
+      version: SCHEMA_VERSION,
+      exportedAt: timestamp.toISOString(),
+      data: validation.state
+    }, null, 2);
+  }
+
+  function parseBackup(text) {
+    var candidate;
+    var validation;
+
+    try {
+      candidate = JSON.parse(text);
+    } catch (error) {
+      return invalid("The selected file is not valid JSON.");
+    }
+
+    if (!isPlainObject(candidate)
+        || candidate.format !== BACKUP_FORMAT
+        || candidate.version !== SCHEMA_VERSION
+        || typeof candidate.exportedAt !== "string") {
+      return invalid("The selected file is not a supported timesheet backup.");
+    }
+
+    validation = validateState(candidate.data);
+    if (!validation.valid) {
+      return validation;
+    }
+
+    return {
+      valid: true,
+      state: validation.state,
+      exportedAt: candidate.exportedAt,
+      error: ""
+    };
+  }
+
+  function mergeStates(localState, importedState) {
+    var localValidation = validateState(localState);
+    var importedValidation = validateState(importedState);
+    var merged;
+
+    if (!localValidation.valid) {
+      throw new Error(localValidation.error);
+    }
+
+    if (!importedValidation.valid) {
+      throw new Error(importedValidation.error);
+    }
+
+    merged = cloneState(localValidation.state);
+
+    Object.keys(importedValidation.state.entries).forEach(function (dateKey) {
+      merged.entries[dateKey] = cloneEntry(importedValidation.state.entries[dateKey]);
+    });
+
+    Object.keys(importedValidation.state.schedules).forEach(function (monthKey) {
+      merged.schedules[monthKey] = importedValidation.state.schedules[monthKey];
+    });
+
+    return merged;
+  }
+
+  return {
+    STORAGE_KEY: STORAGE_KEY,
+    SCHEMA_VERSION: SCHEMA_VERSION,
+    BACKUP_FORMAT: BACKUP_FORMAT,
+    ENTRY_FIELDS: ENTRY_FIELDS.slice(),
+    createEmptyState: createEmptyState,
+    cloneState: cloneState,
+    validateState: validateState,
+    getBrowserStorage: getBrowserStorage,
+    loadState: loadState,
+    saveState: saveState,
+    ensureMonthSchedule: ensureMonthSchedule,
+    serializeBackup: serializeBackup,
+    parseBackup: parseBackup,
+    mergeStates: mergeStates
+  };
+});

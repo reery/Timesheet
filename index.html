@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Timesheet</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="js/core.js"></script>
+  <script defer src="js/storage.js"></script>
+  <script defer src="js/app.js"></script>
+</head>
+<body data-app-status="loading">
+  <a class="skip-link" href="#timesheetTable">Skip to timesheet</a>
+
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand-block">
+        <p class="eyebrow">Local time ledger</p>
+        <h1>Timesheet</h1>
+      </div>
+
+      <div class="header-actions">
+        <p id="saveStatus" class="save-status" data-tone="neutral" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-status-text>Loading</span>
+        </p>
+        <button id="exportButton" class="button button-secondary" type="button">
+          <span class="button-icon" aria-hidden="true">&#8595;</span>
+          Backup
+        </button>
+        <button id="restoreButton" class="button button-secondary" type="button">
+          <span class="button-icon" aria-hidden="true">&#8593;</span>
+          Restore
+        </button>
+        <input id="restoreInput" class="visually-hidden" type="file" accept="application/json,.json" tabindex="-1">
+      </div>
+    </header>
+
+    <main>
+      <section class="period-bar" aria-label="Timesheet period and schedule">
+        <nav class="period-navigation" aria-label="Month navigation">
+          <button id="previousMonth" class="icon-button" type="button" aria-label="Previous month" title="Previous month">
+            <span aria-hidden="true">&#8592;</span>
+          </button>
+
+          <div class="period-picker">
+            <label class="visually-hidden" for="monthSelect">Month</label>
+            <select id="monthSelect" aria-label="Month"></select>
+
+            <label class="visually-hidden" for="yearInput">Year</label>
+            <input id="yearInput" class="year-input" type="number" min="1900" max="9999" step="1" inputmode="numeric" aria-label="Year">
+          </div>
+
+          <button id="nextMonth" class="icon-button" type="button" aria-label="Next month" title="Next month">
+            <span aria-hidden="true">&#8594;</span>
+          </button>
+          <button id="todayButton" class="button button-quiet" type="button">Today</button>
+        </nav>
+
+        <div class="schedule-control">
+          <label for="weeklyHours">Weekly hours</label>
+          <div class="number-field">
+            <input id="weeklyHours" type="number" min="0" max="168" step="0.1" inputmode="decimal" aria-describedby="scheduleMessage dailyTarget">
+            <span aria-hidden="true">h</span>
+          </div>
+          <p id="scheduleMessage" class="field-message" aria-live="polite"></p>
+          <p id="dailyTarget" class="daily-target"></p>
+        </div>
+      </section>
+
+      <section class="month-overview" aria-labelledby="monthHeading">
+        <div class="overview-heading">
+          <p id="monthKeyLabel" class="eyebrow"></p>
+          <h2 id="monthHeading"></h2>
+          <p id="summaryCutoff" class="summary-cutoff"></p>
+        </div>
+
+        <dl class="summary-strip" aria-label="Monthly summary">
+          <div class="summary-metric">
+            <dt>Worked to date</dt>
+            <dd id="monthWorked">--</dd>
+            <span id="monthWorkedDecimal" class="metric-detail">--</span>
+          </div>
+          <div class="summary-metric">
+            <dt>Expected to date</dt>
+            <dd id="monthExpected">--</dd>
+            <span class="metric-detail">decimal hours</span>
+          </div>
+          <div class="summary-metric">
+            <dt>Planned month</dt>
+            <dd id="monthPlanned">--</dd>
+            <span class="metric-detail">Monday to Friday</span>
+          </div>
+          <div id="monthBalanceMetric" class="summary-metric summary-balance" data-balance="neutral">
+            <dt>Balance to date</dt>
+            <dd id="monthBalance">--</dd>
+            <span class="metric-detail">against expected</span>
+          </div>
+        </dl>
+      </section>
+
+      <section class="ledger-section" aria-labelledby="ledgerHeading">
+        <div class="ledger-heading">
+          <h2 id="ledgerHeading">Daily ledger</h2>
+          <p>Monday to Sunday</p>
+        </div>
+
+        <div class="table-frame">
+          <table id="timesheetTable">
+            <caption class="visually-hidden">Daily times and weekly summaries for the selected month</caption>
+            <colgroup>
+              <col class="date-column">
+              <col class="time-column">
+              <col class="time-column">
+              <col class="time-column">
+              <col class="time-column">
+              <col class="result-column">
+              <col class="decimal-column">
+              <col class="balance-column">
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Start</th>
+                <th scope="col">Finish</th>
+                <th scope="col">Break start</th>
+                <th scope="col">Break finish</th>
+                <th scope="col">Worked</th>
+                <th scope="col">Decimal</th>
+                <th scope="col">Balance</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <noscript>This timesheet requires JavaScript to calculate and save entries.</noscript>
+</body>
+</html>
