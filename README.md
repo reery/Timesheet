@@ -1,5 +1,7 @@
 # Local Timesheet
 
+<img src="Timesheet_v02.png" alt="Local Timesheet screenshot" width="800">
+
 A dependency-free monthly timesheet that runs entirely in the browser. No server, account, internet connection, or installation is required.
 
 ## Open the timesheet
@@ -32,10 +34,11 @@ The initial schedule is 32 hours per week, spread evenly across Monday to Friday
 
 When a month is opened for the first time, it copies the previous effective monthly value. After that, changing either month does not change the other.
 
-Balances accrue through today:
+Balances include dates due through today and valid shifts entered ahead of time:
 
 - Blank past weekdays count as missed target time.
-- Future weekdays do not create a deficit yet.
+- A valid future shift immediately counts toward its daily, weekly, and monthly totals and balances.
+- Blank or incomplete future weekdays do not create a deficit yet.
 - Historical months include the full month.
 - Weekend work counts as positive time.
 

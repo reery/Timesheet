@@ -351,7 +351,7 @@
     var targetMinutes = getDailyTargetMinutes(dateKey, weeklyHours);
     var shift = calculateShift(entry || {});
     var workedMinutes = shift.status === "valid" ? shift.workedMinutes : 0;
-    var evaluated = dateKey <= cutoff;
+    var evaluated = dateKey <= cutoff || shift.status === "valid";
 
     return {
       date: dateKey,

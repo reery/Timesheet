@@ -132,18 +132,19 @@
     equal(core.getEffectiveWeeklyHours("2026-07", schedules), 35);
   });
 
-  test("summaries accrue through today and ignore future deficits", function () {
-    var dates = ["2026-07-13", "2026-07-14", "2026-07-17"];
+  test("summaries include entered future shifts and ignore blank future deficits", function () {
+    var dates = ["2026-07-13", "2026-07-14", "2026-07-17", "2026-07-20"];
     var entries = {
       "2026-07-13": { start: "09:00", finish: "16:00" },
       "2026-07-17": { start: "09:00", finish: "16:00" }
     };
     var summary = core.summarizeDates(dates, entries, { "2026-07": 32 }, "2026-07-16");
 
-    equal(summary.workedMinutes, 390);
-    equal(summary.expectedMinutes, 768);
-    equal(summary.plannedMinutes, 1152);
-    equal(summary.balanceMinutes, -378);
+    equal(summary.workedMinutes, 780);
+    equal(summary.expectedMinutes, 1152);
+    equal(summary.plannedMinutes, 1536);
+    equal(summary.balanceMinutes, -372);
+    equal(summary.evaluatedDays, 3);
   });
 
   test("week totals apply each date's own monthly schedule", function () {

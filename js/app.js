@@ -50,9 +50,7 @@
     document.body.dataset.appStatus = "ready";
 
     if (core.getMonthKey(todayKey) === core.getMonthKey(viewDate)) {
-      root.requestAnimationFrame(function () {
-        focusTimeInput(todayKey, "start");
-      });
+      focusTimeInput(todayKey, "start");
     }
   }
 
@@ -271,12 +269,10 @@
   function updateWeekRow(row) {
     var week = viewWeeks[Number(row.dataset.weekIndex)];
     var summary = core.summarizeDates(week.dates, state.entries, state.schedules, todayKey);
-    var hasEvaluatedDate = week.dates.some(function (dateKey) {
-      return dateKey <= todayKey;
-    });
+    var hasEvaluatedDate = summary.evaluatedDays > 0;
 
     row.querySelector("[data-week-target]").textContent = hasEvaluatedDate
-      ? core.formatDecimalHours(summary.expectedMinutes) + "h target to date"
+      ? core.formatDecimalHours(summary.expectedMinutes) + "h expected"
       : "Not due yet";
     row.querySelector("[data-week-worked]").textContent = hasEvaluatedDate
       ? core.formatDuration(summary.workedMinutes)
@@ -288,13 +284,25 @@
   }
 
   function updateMonthSummary(monthDates, summary) {
-    var hasEvaluatedDate = monthDates.some(function (dateKey) {
+    var hasDueDate = monthDates.some(function (dateKey) {
       return dateKey <= todayKey;
+    });
+    var hasEvaluatedDate = summary.evaluatedDays > 0;
+    var hasEnteredFutureDate = monthDates.some(function (dateKey) {
+      return dateKey > todayKey
+        && core.getDaySummary(dateKey, state.entries[dateKey], state.schedules, todayKey).evaluated;
     });
     var monthEnd = monthDates[monthDates.length - 1];
     var cutoff = monthEnd < todayKey ? monthEnd : todayKey;
 
-    elements.summaryCutoff.textContent = hasEvaluatedDate ? "Through " + cutoff : "Not due yet";
+    if (!hasEvaluatedDate) {
+      elements.summaryCutoff.textContent = "Not due yet";
+    } else if (!hasDueDate) {
+      elements.summaryCutoff.textContent = "Entered future shifts";
+    } else {
+      elements.summaryCutoff.textContent = "Through " + cutoff
+        + (hasEnteredFutureDate ? " + entered future shifts" : "");
+    }
     elements.monthWorked.textContent = hasEvaluatedDate
       ? core.formatDuration(summary.workedMinutes)
       : "--";
@@ -445,9 +453,7 @@
     viewDate = new Date(today.getFullYear(), today.getMonth(), 1, 12);
     initializeVisibleMonth();
     renderMonth();
-    root.requestAnimationFrame(function () {
-      focusTimeInput(todayKey, "start");
-    });
+    focusTimeInput(todayKey, "start");
   }
 
   function focusTimeInput(dateKey, field) {

@@ -125,6 +125,10 @@
     .then(function () {
       return run("opens on the current month with today selected", function () {
         var documentUnderTest = getDocument();
+        var tableFrame = documentUnderTest.querySelector(".table-frame");
+        var todayRow = documentUnderTest.querySelector('[data-date="' + todayKey + '"]');
+        var frameBounds;
+        var todayBounds;
         var expectedWeeks = frame.contentWindow.TimesheetCore.buildMonthWeeks(
           Number(currentMonthKey.slice(0, 4)),
           Number(currentMonthKey.slice(5, 7)) - 1
@@ -133,7 +137,11 @@
         equal(frame.contentWindow.TimesheetApp.getViewMonth(), currentMonthKey);
         equal(documentUnderTest.querySelectorAll(".day-row").length, expectedWeeks.length * 7);
         equal(documentUnderTest.querySelectorAll(".week-summary").length, expectedWeeks.length);
-        assert(documentUnderTest.querySelector('[data-date="' + todayKey + '"]').classList.contains("is-today"));
+        assert(todayRow.classList.contains("is-today"));
+        frameBounds = tableFrame.getBoundingClientRect();
+        todayBounds = todayRow.getBoundingClientRect();
+        assert(todayBounds.top >= frameBounds.top, "today should not be above the visible ledger");
+        assert(todayBounds.bottom <= frameBounds.bottom, "today should not be below the visible ledger");
       });
     })
     .then(function () {
@@ -264,6 +272,74 @@
         equal(getDocument().getElementById("weeklyHours").value, "35");
         click("nextMonth");
         equal(getDocument().getElementById("weeklyHours").value, "30");
+      });
+    })
+    .then(function () {
+      return run("shows balances and weekly totals for valid future shifts", function () {
+        var core = frame.contentWindow.TimesheetCore;
+        var nextMonthKey = core.shiftMonthKey(currentMonthKey, 1);
+        var weeks = core.buildMonthWeeks(
+          Number(nextMonthKey.slice(0, 4)),
+          Number(nextMonthKey.slice(5, 7)) - 1
+        );
+        var weekIndex = weeks.findIndex(function (week) {
+          return week.dates[0] > todayKey && week.dates.some(function (dateKey) {
+            return core.getMonthKey(dateKey) === nextMonthKey && core.isWeekday(dateKey);
+          });
+        });
+        var futureDateKey = weeks[weekIndex].dates.find(function (dateKey) {
+          return core.getMonthKey(dateKey) === nextMonthKey && core.isWeekday(dateKey);
+        });
+        var start = getInput(futureDateKey, "start");
+        var finish = getInput(futureDateKey, "finish");
+        var dayRow = start.closest("tr");
+        var weekRow = getDocument().querySelector(
+          '.week-summary[data-week-index="' + weekIndex + '"]'
+        );
+
+        typeValue(start, "900");
+        typeValue(finish, "1600");
+
+        var state = frame.contentWindow.TimesheetApp.getState();
+        var daySummary = core.getDaySummary(
+          futureDateKey,
+          state.entries[futureDateKey],
+          state.schedules,
+          todayKey
+        );
+        var weekSummary = core.summarizeDates(
+          weeks[weekIndex].dates,
+          state.entries,
+          state.schedules,
+          todayKey
+        );
+        var monthSummary = core.summarizeDates(
+          core.getMonthDateKeys(
+            Number(nextMonthKey.slice(0, 4)),
+            Number(nextMonthKey.slice(5, 7)) - 1
+          ),
+          state.entries,
+          state.schedules,
+          todayKey
+        );
+
+        equal(dayRow.querySelector("[data-day-balance]").textContent,
+          core.formatSignedDecimalHours(daySummary.balanceMinutes));
+        equal(dayRow.querySelector("[data-day-balance]").dataset.balance, "positive");
+        equal(weekRow.querySelector("[data-week-target]").textContent,
+          core.formatDecimalHours(weekSummary.expectedMinutes) + "h expected");
+        equal(weekRow.querySelector("[data-week-worked]").textContent,
+          core.formatDuration(weekSummary.workedMinutes));
+        equal(weekRow.querySelector("[data-week-decimal]").textContent,
+          core.formatDecimalHours(weekSummary.workedMinutes));
+        equal(weekRow.querySelector("[data-week-balance]").textContent,
+          core.formatSignedDecimalHours(weekSummary.balanceMinutes));
+        equal(weekRow.querySelector("[data-week-balance]").dataset.balance, "positive");
+        equal(getDocument().getElementById("summaryCutoff").textContent, "Entered future shifts");
+        equal(getDocument().getElementById("monthWorked").textContent,
+          core.formatDuration(monthSummary.workedMinutes));
+        equal(getDocument().getElementById("monthBalance").textContent,
+          core.formatSignedDecimalHours(monthSummary.balanceMinutes) + " h");
       });
     })
     .then(function () {
