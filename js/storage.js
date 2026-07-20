@@ -22,12 +22,23 @@
   var SCHEMA_VERSION = 1;
   var BACKUP_FORMAT = "local-timesheet-backup";
   var ENTRY_FIELDS = ["start", "finish", "breakStart", "breakFinish"];
+  var SUPPORTED_LANGUAGES = ["en", "de"];
+  var SUPPORTED_DESIGNS = ["default-gradient"];
+
+  function createDefaultPreferences() {
+    return {
+      language: "en",
+      design: "default-gradient",
+      dateFormat: core.DATE_FORMATS.ISO
+    };
+  }
 
   function createEmptyState() {
     return {
       version: SCHEMA_VERSION,
       entries: {},
-      schedules: {}
+      schedules: {},
+      preferences: createDefaultPreferences()
     };
   }
 
@@ -54,6 +65,16 @@
     return copy;
   }
 
+  function clonePreferences(preferences) {
+    var source = preferences || createDefaultPreferences();
+
+    return {
+      language: source.language,
+      design: source.design,
+      dateFormat: source.dateFormat
+    };
+  }
+
   function cloneState(state) {
     var copy = createEmptyState();
 
@@ -64,6 +85,8 @@
     Object.keys(state.schedules).forEach(function (monthKey) {
       copy.schedules[monthKey] = Number(state.schedules[monthKey]);
     });
+
+    copy.preferences = clonePreferences(state.preferences);
 
     return copy;
   }
@@ -83,6 +106,17 @@
 
     if (!isPlainObject(candidate.entries) || !isPlainObject(candidate.schedules)) {
       return invalid("The saved data has an invalid structure.");
+    }
+
+    if (hasOwn(candidate, "preferences")) {
+      if (!isPlainObject(candidate.preferences)
+          || SUPPORTED_LANGUAGES.indexOf(candidate.preferences.language) === -1
+          || SUPPORTED_DESIGNS.indexOf(candidate.preferences.design) === -1
+          || !core.isSupportedDateFormat(candidate.preferences.dateFormat)) {
+        return invalid("The saved preferences are invalid.");
+      }
+
+      normalized.preferences = clonePreferences(candidate.preferences);
     }
 
     Object.keys(candidate.entries).some(function (dateKey) {
@@ -249,6 +283,7 @@
   function parseBackup(text) {
     var candidate;
     var validation;
+    var includesPreferences;
 
     try {
       candidate = JSON.parse(text);
@@ -263,6 +298,7 @@
       return invalid("The selected file is not a supported timesheet backup.");
     }
 
+    includesPreferences = isPlainObject(candidate.data) && hasOwn(candidate.data, "preferences");
     validation = validateState(candidate.data);
     if (!validation.valid) {
       return validation;
@@ -272,14 +308,16 @@
       valid: true,
       state: validation.state,
       exportedAt: candidate.exportedAt,
+      includesPreferences: includesPreferences,
       error: ""
     };
   }
 
-  function mergeStates(localState, importedState) {
+  function mergeStates(localState, importedState, options) {
     var localValidation = validateState(localState);
     var importedValidation = validateState(importedState);
     var merged;
+    var includePreferences = !options || options.includePreferences !== false;
 
     if (!localValidation.valid) {
       throw new Error(localValidation.error);
@@ -299,6 +337,10 @@
       merged.schedules[monthKey] = importedValidation.state.schedules[monthKey];
     });
 
+    if (includePreferences) {
+      merged.preferences = clonePreferences(importedValidation.state.preferences);
+    }
+
     return merged;
   }
 
@@ -307,6 +349,9 @@
     SCHEMA_VERSION: SCHEMA_VERSION,
     BACKUP_FORMAT: BACKUP_FORMAT,
     ENTRY_FIELDS: ENTRY_FIELDS.slice(),
+    SUPPORTED_LANGUAGES: SUPPORTED_LANGUAGES.slice(),
+    SUPPORTED_DESIGNS: SUPPORTED_DESIGNS.slice(),
+    createDefaultPreferences: createDefaultPreferences,
     createEmptyState: createEmptyState,
     cloneState: cloneState,
     validateState: validateState,

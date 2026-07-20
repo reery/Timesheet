@@ -3,6 +3,8 @@
 
   var core = root.TimesheetCore;
   var storageApi = root.TimesheetStorage;
+  var APP_VERSION = "v0.3";
+  var MOBILE_MENU_QUERY = "(max-width: 840px)";
   var MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -19,6 +21,7 @@
   var storageWritable = loadResult.ok;
   var viewWeeks = [];
   var elements = {};
+  var mobileMenuMedia = root.matchMedia(MOBILE_MENU_QUERY);
 
   function getStorageKey() {
     var requestedKey;
@@ -36,7 +39,9 @@
 
   function initialize() {
     cacheElements();
+    initializeVersion();
     populateMonthSelect();
+    syncPreferenceControls();
     bindEvents();
     initializeVisibleMonth();
     renderMonth();
@@ -56,7 +61,9 @@
 
   function cacheElements() {
     [
-      "saveStatus", "exportButton", "restoreButton", "restoreInput",
+      "saveStatus", "exportButton", "restoreButton", "restoreInput", "settingsButton",
+      "menuButton", "headerActions", "settingsDialog", "settingsCloseButton",
+      "dateFormatSelect", "languageSelect", "designSelect",
       "previousMonth", "monthSelect", "yearInput", "nextMonth", "todayButton",
       "weeklyHours", "scheduleMessage", "dailyTarget", "monthKeyLabel",
       "monthHeading", "summaryCutoff", "monthWorked", "monthWorkedDecimal",
@@ -66,6 +73,21 @@
       elements[id] = document.getElementById(id);
     });
     elements.statusText = elements.saveStatus.querySelector("[data-status-text]");
+  }
+
+  function initializeVersion() {
+    document.querySelectorAll("[data-app-version]").forEach(function (element) {
+      element.textContent = APP_VERSION;
+    });
+    document.querySelectorAll("[data-about-version]").forEach(function (element) {
+      element.textContent = "Timesheet " + APP_VERSION;
+    });
+  }
+
+  function syncPreferenceControls() {
+    elements.dateFormatSelect.value = state.preferences.dateFormat;
+    elements.languageSelect.value = state.preferences.language;
+    elements.designSelect.value = state.preferences.design;
   }
 
   function populateMonthSelect() {
@@ -78,6 +100,19 @@
   }
 
   function bindEvents() {
+    elements.menuButton.addEventListener("click", toggleHeaderMenu);
+    elements.settingsButton.addEventListener("click", openSettings);
+    elements.settingsCloseButton.addEventListener("click", closeSettings);
+    elements.settingsDialog.addEventListener("click", onSettingsDialogClick);
+    elements.settingsDialog.addEventListener("close", onSettingsDialogClose);
+    elements.dateFormatSelect.addEventListener("change", onDateFormatChange);
+    document.addEventListener("click", onDocumentClick);
+    document.addEventListener("keydown", onDocumentKeydown);
+    if (typeof mobileMenuMedia.addEventListener === "function") {
+      mobileMenuMedia.addEventListener("change", onViewportChange);
+    } else {
+      mobileMenuMedia.addListener(onViewportChange);
+    }
     elements.previousMonth.addEventListener("click", function () {
       changeMonth(-1);
     });
@@ -96,11 +131,94 @@
     elements.weeklyHours.addEventListener("blur", onScheduleBlur);
     elements.ledgerBody.addEventListener("input", onTimeInput);
     elements.ledgerBody.addEventListener("focusout", onTimeBlur);
-    elements.exportButton.addEventListener("click", downloadBackup);
+    elements.exportButton.addEventListener("click", function () {
+      closeHeaderMenu();
+      downloadBackup();
+    });
     elements.restoreButton.addEventListener("click", function () {
+      closeHeaderMenu();
       elements.restoreInput.click();
     });
     elements.restoreInput.addEventListener("change", restoreBackup);
+  }
+
+  function toggleHeaderMenu() {
+    setHeaderMenuOpen(elements.headerActions.dataset.open !== "true");
+  }
+
+  function closeHeaderMenu() {
+    setHeaderMenuOpen(false);
+  }
+
+  function setHeaderMenuOpen(open) {
+    var expanded = Boolean(open && mobileMenuMedia.matches);
+
+    elements.headerActions.dataset.open = expanded ? "true" : "false";
+    elements.menuButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+    elements.menuButton.setAttribute("aria-label", expanded ? "Close menu" : "Open menu");
+  }
+
+  function onDocumentClick(event) {
+    if (elements.headerActions.dataset.open === "true"
+        && !elements.headerActions.contains(event.target)
+        && !elements.menuButton.contains(event.target)) {
+      closeHeaderMenu();
+    }
+  }
+
+  function onDocumentKeydown(event) {
+    if (event.key === "Escape" && elements.headerActions.dataset.open === "true") {
+      closeHeaderMenu();
+      elements.menuButton.focus();
+    }
+  }
+
+  function onViewportChange(event) {
+    if (!event.matches) {
+      closeHeaderMenu();
+    }
+  }
+
+  function openSettings() {
+    syncPreferenceControls();
+    closeHeaderMenu();
+    document.body.classList.add("settings-open");
+    elements.settingsDialog.showModal();
+  }
+
+  function closeSettings() {
+    if (elements.settingsDialog.open) {
+      document.body.classList.remove("settings-open");
+      elements.settingsDialog.close();
+    }
+  }
+
+  function onSettingsDialogClick(event) {
+    if (event.target === elements.settingsDialog) {
+      closeSettings();
+    }
+  }
+
+  function onSettingsDialogClose() {
+    document.body.classList.remove("settings-open");
+    if (mobileMenuMedia.matches) {
+      elements.menuButton.focus({ preventScroll: true });
+    } else {
+      elements.settingsButton.focus({ preventScroll: true });
+    }
+  }
+
+  function onDateFormatChange() {
+    var value = elements.dateFormatSelect.value;
+
+    if (!core.isSupportedDateFormat(value)) {
+      syncPreferenceControls();
+      return;
+    }
+
+    state.preferences.dateFormat = value;
+    persistState();
+    renderMonth();
   }
 
   function initializeVisibleMonth() {
@@ -156,7 +274,8 @@
       + '<tr class="week-summary" data-week-index="' + weekIndex + '">'
       + '<th scope="row" colspan="5">'
       + '<span class="week-label">Week ' + week.week + '</span>'
-      + '<span class="week-range">' + firstDate + ' to ' + lastDate + '</span>'
+      + '<span class="week-range">' + formatDisplayDate(firstDate) + ' to '
+      + formatDisplayDate(lastDate) + '</span>'
       + '<span class="week-target" data-week-target></span>'
       + '</th>'
       + '<td class="result-cell"><output class="result-value" data-week-worked>--</output></td>'
@@ -188,7 +307,7 @@
 
     return '<tr class="' + classes.join(" ") + '" data-date="' + dateKey + '">'
       + '<th scope="row" class="date-cell">'
-      + '<div class="date-line"><time datetime="' + dateKey + '">' + dateKey + '</time>'
+      + '<div class="date-line"><time datetime="' + dateKey + '">' + formatDisplayDate(dateKey) + '</time>'
       + '<span class="weekday">' + WEEKDAY_NAMES[day] + '</span></div>'
       + '<span id="' + messageId + '" class="row-message"></span>'
       + '</th>'
@@ -206,8 +325,16 @@
   function renderTimeCell(dateKey, field, label, value, messageId) {
     return '<td><input class="time-input" type="text" inputmode="numeric" maxlength="5"'
       + ' autocomplete="off" spellcheck="false" placeholder="--:--"'
-      + ' aria-label="' + label + ' for ' + dateKey + '" aria-describedby="' + messageId + '"'
+      + ' aria-label="' + label + ' for ' + formatDisplayDate(dateKey) + '" aria-describedby="' + messageId + '"'
       + ' aria-invalid="false" data-field="' + field + '" value="' + escapeHtml(value) + '"></td>';
+  }
+
+  function formatDisplayDate(dateKey) {
+    return core.formatDate(
+      dateKey,
+      state.preferences.dateFormat,
+      state.preferences.language
+    );
   }
 
   function escapeHtml(value) {
@@ -300,7 +427,7 @@
     } else if (!hasDueDate) {
       elements.summaryCutoff.textContent = "Entered future shifts";
     } else {
-      elements.summaryCutoff.textContent = "Through " + cutoff
+      elements.summaryCutoff.textContent = "Through " + formatDisplayDate(cutoff)
         + (hasEnteredFutureDate ? " + entered future shifts" : "");
     }
     elements.monthWorked.textContent = hasEvaluatedDate
@@ -530,13 +657,17 @@
     }
 
     if (!root.confirm(
-      "Restore this backup? Imported entries and monthly hours will replace matching local values. Other local dates will stay."
+      "Restore this backup? Imported entries and monthly hours will replace matching local values."
+      + (parsed.includesPreferences ? " Imported preferences will replace local preferences." : "")
+      + " Other local dates will stay."
     )) {
       setStatus("Restore cancelled", "neutral");
       return;
     }
 
-    merged = storageApi.mergeStates(state, parsed.state);
+    merged = storageApi.mergeStates(state, parsed.state, {
+      includePreferences: parsed.includesPreferences
+    });
     storageApi.ensureMonthSchedule(merged, core.getMonthKey(viewDate));
     result = storageApi.saveState(browserStorage, merged, storageKey);
 
@@ -547,6 +678,7 @@
 
     state = merged;
     storageWritable = true;
+    syncPreferenceControls();
     renderMonth();
     setStatus("Backup restored and saved", "success");
   }

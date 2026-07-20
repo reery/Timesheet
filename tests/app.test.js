@@ -58,6 +58,14 @@
     return loaded.then(waitForReady);
   }
 
+  function waitForLayout() {
+    return new Promise(function (resolve) {
+      frame.contentWindow.requestAnimationFrame(function () {
+        frame.contentWindow.requestAnimationFrame(resolve);
+      });
+    });
+  }
+
   function run(name, callback) {
     return Promise.resolve().then(callback).then(function () {
       passed += 1;
@@ -151,12 +159,17 @@
         var tableFrame = documentUnderTest.querySelector(".table-frame");
         var timeInput = documentUnderTest.querySelector(".time-input");
         var tableHeading = documentUnderTest.querySelector("thead th");
-        var controls = documentUnderTest.querySelectorAll(
-          ".header-actions button, .period-navigation button, .period-picker, .schedule-control"
-        );
+        var headerActions = documentUnderTest.getElementById("headerActions");
+        var controls;
 
         equal(viewportWidth, 390);
         equal(documentUnderTest.documentElement.scrollWidth, viewportWidth);
+        equal(frame.contentWindow.getComputedStyle(headerActions).display, "none");
+        click("menuButton");
+        equal(documentUnderTest.getElementById("menuButton").getAttribute("aria-expanded"), "true");
+        controls = documentUnderTest.querySelectorAll(
+          ".mobile-menu-button, .header-actions button, .period-navigation button, .period-picker, .schedule-control"
+        );
         assert(tableFrame.scrollWidth > tableFrame.clientWidth, "ledger should scroll horizontally");
         assert(
           parseFloat(frame.contentWindow.getComputedStyle(documentUnderTest.body).fontSize) >= 16,
@@ -175,6 +188,112 @@
           assert(bounds.left >= 0, "control extends left of viewport");
           assert(bounds.right <= viewportWidth, "control extends right of viewport");
           assert(bounds.height >= 44, "control should provide a 44px touch target");
+        });
+        documentUnderTest.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        equal(documentUnderTest.getElementById("menuButton").getAttribute("aria-expanded"), "false");
+        click("menuButton");
+        documentUnderTest.dispatchEvent(new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true
+        }));
+        equal(documentUnderTest.getElementById("menuButton").getAttribute("aria-expanded"), "false");
+        equal(documentUnderTest.activeElement, documentUnderTest.getElementById("menuButton"));
+      });
+    })
+    .then(function () {
+      return run("opens preferences and persists formatted display dates", function () {
+        var documentUnderTest = getDocument();
+        var core = frame.contentWindow.TimesheetCore;
+        var dialog = documentUnderTest.getElementById("settingsDialog");
+        var dateFormatSelect = documentUnderTest.getElementById("dateFormatSelect");
+        var languageSelect = documentUnderTest.getElementById("languageSelect");
+        var designSelect = documentUnderTest.getElementById("designSelect");
+        var preferencesButton = documentUnderTest.getElementById("settingsButton");
+        var repositoryLink = dialog.querySelector(".about-details a");
+        var todayTime;
+        var firstWeek;
+        var firstWeekRange;
+
+        assert(documentUnderTest.querySelector("[data-brand-icon]"), "brand should include a timetable icon");
+        equal(documentUnderTest.querySelector(".brand-line h1").textContent, "Timesheet");
+        equal(documentUnderTest.querySelector("[data-app-version]").textContent, "v0.3");
+        equal(preferencesButton.textContent.trim(), "Preferences");
+        equal(documentUnderTest.body.textContent.indexOf("Settings"), -1);
+        click("menuButton");
+        click("settingsButton");
+        equal(dialog.open, true);
+        equal(documentUnderTest.body.classList.contains("settings-open"), true);
+        equal(documentUnderTest.getElementById("menuButton").getAttribute("aria-expanded"), "false");
+        equal(documentUnderTest.getElementById("settingsTitle").textContent, "Preferences");
+        equal(dialog.querySelector(".settings-dialog-header .eyebrow"), null);
+        equal(documentUnderTest.getElementById("settingsCloseButton").getAttribute("aria-label"), "Close preferences");
+        equal(documentUnderTest.querySelector("[data-about-version]").textContent, "Timesheet v0.3");
+        equal(dialog.querySelector(".about-details p:first-child").textContent, "Local work time tracker.");
+        equal(dialog.querySelector(".about-details p:nth-child(2)").textContent, "MIT licence.");
+        equal(repositoryLink.textContent, "https://github.com/reery/Timesheet");
+        equal(repositoryLink.href, "https://github.com/reery/Timesheet");
+        equal(languageSelect.disabled, true);
+        equal(languageSelect.options.length, 2);
+        equal(languageSelect.value, "en");
+        equal(designSelect.disabled, true);
+        equal(designSelect.value, "default-gradient");
+
+        dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        equal(dialog.open, false);
+        equal(documentUnderTest.body.classList.contains("settings-open"), false);
+        click("menuButton");
+        click("settingsButton");
+
+        dateFormatSelect.value = core.DATE_FORMATS.DAY_MONTH_YEAR_DOTS;
+        dateFormatSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        equal(
+          frame.contentWindow.TimesheetApp.getState().preferences.dateFormat,
+          core.DATE_FORMATS.DAY_MONTH_YEAR_DOTS
+        );
+
+        todayTime = documentUnderTest.querySelector('[data-date="' + todayKey + '"] time');
+        equal(todayTime.textContent, core.formatDate(todayKey, core.DATE_FORMATS.DAY_MONTH_YEAR_DOTS, "en"));
+        equal(todayTime.getAttribute("datetime"), todayKey);
+        assert(
+          getInput(todayKey, "start").getAttribute("aria-label").indexOf(todayTime.textContent) !== -1,
+          "time input label should use the selected display date"
+        );
+
+        firstWeek = core.buildMonthWeeks(
+          Number(currentMonthKey.slice(0, 4)),
+          Number(currentMonthKey.slice(5, 7)) - 1
+        )[0];
+        firstWeekRange = core.formatDate(
+          firstWeek.dates[0],
+          core.DATE_FORMATS.DAY_MONTH_YEAR_DOTS,
+          "en"
+        ) + " to " + core.formatDate(
+          firstWeek.dates[6],
+          core.DATE_FORMATS.DAY_MONTH_YEAR_DOTS,
+          "en"
+        );
+        equal(documentUnderTest.querySelector(".week-range").textContent, firstWeekRange);
+        equal(
+          documentUnderTest.getElementById("summaryCutoff").textContent,
+          "Through " + core.formatDate(todayKey, core.DATE_FORMATS.DAY_MONTH_YEAR_DOTS, "en")
+        );
+
+        click("settingsCloseButton");
+        equal(dialog.open, false);
+        equal(documentUnderTest.activeElement, documentUnderTest.getElementById("menuButton"));
+
+        return reloadFrame().then(function () {
+          var reloadedTime = getDocument().querySelector('[data-date="' + todayKey + '"] time');
+          equal(
+            frame.contentWindow.TimesheetApp.getState().preferences.dateFormat,
+            frame.contentWindow.TimesheetCore.DATE_FORMATS.DAY_MONTH_YEAR_DOTS
+          );
+          equal(reloadedTime.textContent, frame.contentWindow.TimesheetCore.formatDate(
+            todayKey,
+            frame.contentWindow.TimesheetCore.DATE_FORMATS.DAY_MONTH_YEAR_DOTS,
+            "en"
+          ));
+          equal(reloadedTime.getAttribute("datetime"), todayKey);
         });
       });
     })
@@ -358,11 +477,13 @@
         var documentUnderTest = getDocument();
         var tableFrame = documentUnderTest.querySelector(".table-frame");
         var summaryMetrics = documentUnderTest.querySelectorAll(".summary-metric");
-        var controls = documentUnderTest.querySelectorAll(
-          ".header-actions button, .period-navigation button, .period-picker, .schedule-control"
-        );
+        var controls;
 
         frame.style.width = "320px";
+        click("menuButton");
+        controls = documentUnderTest.querySelectorAll(
+          ".mobile-menu-button, .header-actions button, .period-navigation button, .period-picker, .schedule-control"
+        );
 
         equal(frame.contentWindow.innerWidth, 320);
         equal(documentUnderTest.documentElement.scrollWidth, 320);
@@ -376,6 +497,57 @@
           assert(bounds.left >= 0, "control extends left of minimum viewport");
           assert(bounds.right <= 320, "control extends right of minimum viewport");
           assert(bounds.height >= 44, "control should retain a 44px touch target");
+        });
+
+        click("settingsButton");
+        var dialog = documentUnderTest.getElementById("settingsDialog");
+        var dialogBounds = dialog.getBoundingClientRect();
+        equal(dialog.open, true);
+        equal(documentUnderTest.documentElement.scrollWidth, 320);
+        assert(dialogBounds.left >= 0, "preferences dialog extends left of minimum viewport");
+        assert(dialogBounds.right <= 320, "preferences dialog extends right of minimum viewport");
+        dialog.querySelectorAll("button, select").forEach(function (control) {
+          var bounds = control.getBoundingClientRect();
+          assert(bounds.left >= dialogBounds.left, "preferences control extends left of dialog");
+          assert(bounds.right <= dialogBounds.right, "preferences control extends right of dialog");
+          assert(bounds.height >= 44, "preferences control should retain a 44px touch target");
+        });
+        dialog.querySelectorAll(".setting-row").forEach(function (row) {
+          var iconBounds = row.querySelector(".setting-icon").getBoundingClientRect();
+          var label = row.querySelector("label");
+          var labelBounds = label.getBoundingClientRect();
+          var selectBounds = row.querySelector("select").getBoundingClientRect();
+
+          assert(iconBounds.top < selectBounds.bottom && iconBounds.bottom > selectBounds.top,
+            "preference icon and select should share one row");
+          assert(labelBounds.top < selectBounds.bottom && labelBounds.bottom > selectBounds.top,
+            "preference label and select should share one row");
+          assert(labelBounds.right <= selectBounds.left, "preference label should not overlap its select");
+          equal(frame.contentWindow.getComputedStyle(label).whiteSpace, "nowrap");
+        });
+        click("settingsCloseButton");
+      });
+    })
+    .then(function () {
+      return run("restores one-row actions above the mobile breakpoint", function () {
+        frame.style.width = "841px";
+
+        return waitForLayout().then(function () {
+          var documentUnderTest = getDocument();
+          var header = documentUnderTest.querySelector(".app-header");
+          var headerActions = documentUnderTest.getElementById("headerActions");
+          var brandBounds = documentUnderTest.querySelector(".brand-line").getBoundingClientRect();
+          var actionBounds = headerActions.getBoundingClientRect();
+
+          equal(frame.contentWindow.innerWidth, 841);
+          equal(documentUnderTest.documentElement.scrollWidth, 841);
+          equal(frame.contentWindow.getComputedStyle(documentUnderTest.getElementById("menuButton")).display, "none");
+          equal(frame.contentWindow.getComputedStyle(headerActions).display, "flex");
+          equal(headerActions.dataset.open, "false");
+          equal(documentUnderTest.getElementById("restoreButton").nextElementSibling.id, "settingsButton");
+          assert(actionBounds.right <= header.getBoundingClientRect().right, "desktop actions should fit the header");
+          assert(brandBounds.top < actionBounds.bottom && brandBounds.bottom > actionBounds.top,
+            "brand and desktop actions should share one row");
         });
       });
     })

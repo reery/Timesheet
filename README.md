@@ -1,8 +1,10 @@
 # Local Timesheet
 
-<img src="Timesheet_v02.png" alt="Local Timesheet screenshot" width="800">
+<img src="Timesheet_v03.png" alt="Timesheet v0.3 screenshot" width="800">
 
 A dependency-free monthly timesheet that runs entirely in the browser. No server, account, internet connection, or installation is required.
+
+The current release is **Timesheet v0.3**.
 
 ## Open the timesheet
 
@@ -51,16 +53,37 @@ Every edit is written immediately to browser `localStorage`. There is no app-def
 Use **Backup** periodically to download a dated JSON file. **Restore** validates a selected backup, asks for confirmation, and merges it into local data:
 
 - Imported values replace matching dates and monthly schedules.
+- Backups created by v0.3 also restore display preferences.
+- Older backups without preferences leave the current local preferences unchanged.
 - Local dates absent from the backup are preserved.
 
 There is intentionally no clear-all action.
+
+## Preferences and display
+
+Open **Preferences** from the gear button beside Restore. The Preferences dialog can be closed with its close button, by selecting the blurred backdrop, or with <kbd>Esc</kbd>.
+
+The date format applies to ledger dates, weekly ranges, summary cutoff dates, and accessible time-field labels. Available formats are:
+
+- `YYYY-MM-DD`
+- `DD.MM.YYYY`
+- `MM/DD/YYYY`
+- `MM-DD`
+- `MM/DD`
+- `DD MMMM`, for example `20 July`
+
+The selected format is saved immediately in `localStorage` and included in new backups. Internal calculation keys and backup filenames continue to use ISO dates regardless of the display setting.
+
+Language and design selectors are visible as previews of planned preferences. English and the current gradient design remain fixed in v0.3.
+
+At compact screen widths, save status, Backup, Restore, and Preferences move into the hamburger menu beside the Timesheet wordmark.
 
 ## Browser tests
 
 The project includes browser-native tests because Node.js is not required or currently available on this laptop:
 
 - `tests/core.test.html` covers time, break, calendar, target, and aggregate rules.
-- `tests/storage.test.html` covers persistence, validation, schedule snapshots, and backup merging.
-- `tests/app.test.html` drives the real app in an isolated test-storage namespace and checks editing, reload persistence, navigation, summaries, validation, and a 390px responsive viewport.
+- `tests/storage.test.html` covers persistence, validation, preferences, schedule snapshots, and old/new backup merging.
+- `tests/app.test.html` drives the real app in an isolated test-storage namespace and checks editing, preferences, reload persistence, navigation, summaries, validation, and desktop/phone layouts.
 
 Opening the test pages in Chrome displays a pass/fail result. The app integration test uses a separate storage key and cannot overwrite the production timesheet data.

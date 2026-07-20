@@ -34,6 +34,23 @@
     equal(core.parseTime("1260").valid, false);
   });
 
+  test("formats every supported display date style", function () {
+    var formats = core.DATE_FORMATS;
+
+    equal(core.formatDate("2026-07-20", formats.ISO, "en"), "2026-07-20");
+    equal(core.formatDate("2026-07-20", formats.DAY_MONTH_YEAR_DOTS, "en"), "20.07.2026");
+    equal(core.formatDate("2026-07-20", formats.MONTH_DAY_YEAR_SLASHES, "en"), "07/20/2026");
+    equal(core.formatDate("2026-07-20", formats.MONTH_DAY_DASH, "en"), "07-20");
+    equal(core.formatDate("2026-07-20", formats.MONTH_DAY_SLASH, "en"), "07/20");
+    equal(core.formatDate("2026-07-20", formats.DAY_LONG_MONTH, "en"), "20 July");
+  });
+
+  test("falls back safely for unsupported formats and invalid dates", function () {
+    equal(core.formatDate("2026-07-20", "unknown", "en"), "2026-07-20");
+    equal(core.formatDate("not-a-date", core.DATE_FORMATS.ISO, "en"), "not-a-date");
+    equal(core.formatDate("2026-03-05", core.DATE_FORMATS.DAY_LONG_MONTH, "de"), "5 M\u00e4rz");
+  });
+
   test("applies the automatic break to a seven-hour shift", function () {
     var shift = core.calculateShift({ start: "900", finish: "1600" });
 

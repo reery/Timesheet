@@ -54,6 +54,27 @@
     equal(storageApi.loadState(memory).state.entries["2026-07-16"].start, "9");
   });
 
+  test("round trips validated preferences", function () {
+    var memory = new MemoryStorage();
+    var state = storageApi.createEmptyState();
+
+    state.preferences.language = "de";
+    state.preferences.dateFormat = "day-month-year-dots";
+    equal(storageApi.saveState(memory, state).ok, true);
+    equal(storageApi.loadState(memory).state.preferences.language, "de");
+    equal(storageApi.loadState(memory).state.preferences.dateFormat, "day-month-year-dots");
+  });
+
+  test("defaults legacy state preferences and rejects invalid settings", function () {
+    var legacyState = { version: 1, entries: {}, schedules: {} };
+    var invalidState = storageApi.createEmptyState();
+
+    invalidState.preferences.dateFormat = "unknown";
+    equal(storageApi.validateState(legacyState).valid, true);
+    equal(storageApi.validateState(legacyState).state.preferences.dateFormat, "iso");
+    equal(storageApi.validateState(invalidState).valid, false);
+  });
+
   test("does not overwrite malformed stored data while loading", function () {
     var memory = new MemoryStorage();
     memory.values[storageApi.STORAGE_KEY] = "{bad json";
@@ -96,6 +117,41 @@
 
     equal(parsed.valid, true);
     equal(parsed.state.entries["2026-07-16"].finish, "1600");
+    equal(parsed.includesPreferences, true);
+    equal(parsed.state.preferences.dateFormat, "iso");
+  });
+
+  test("legacy backups preserve local preferences when merged", function () {
+    var local = storageApi.createEmptyState();
+    var legacyData = { version: 1, entries: {}, schedules: {} };
+    var parsed = storageApi.parseBackup(JSON.stringify({
+      format: storageApi.BACKUP_FORMAT,
+      version: storageApi.SCHEMA_VERSION,
+      exportedAt: "2026-07-16T12:00:00.000Z",
+      data: legacyData
+    }));
+    var merged;
+
+    local.preferences.dateFormat = "month-day-slash";
+    merged = storageApi.mergeStates(local, parsed.state, {
+      includePreferences: parsed.includesPreferences
+    });
+
+    equal(parsed.valid, true);
+    equal(parsed.includesPreferences, false);
+    equal(merged.preferences.dateFormat, "month-day-slash");
+  });
+
+  test("current backups replace local preferences when merged", function () {
+    var local = storageApi.createEmptyState();
+    var imported = storageApi.createEmptyState();
+    var merged;
+
+    local.preferences.dateFormat = "month-day-slash";
+    imported.preferences.dateFormat = "day-long-month";
+    merged = storageApi.mergeStates(local, imported, { includePreferences: true });
+
+    equal(merged.preferences.dateFormat, "day-long-month");
   });
 
   test("merge restore keeps unrelated local dates and imports conflicts", function () {
@@ -118,6 +174,11 @@
   test("rejects malformed backup envelopes", function () {
     equal(storageApi.parseBackup("{}").valid, false);
     equal(storageApi.parseBackup("not json").valid, false);
+    equal(storageApi.parseBackup(JSON.stringify({
+      format: storageApi.BACKUP_FORMAT,
+      version: storageApi.SCHEMA_VERSION,
+      exportedAt: "2026-07-16T12:00:00.000Z"
+    })).valid, false);
   });
 
   if (failures.length > 0) {

@@ -15,6 +15,27 @@
   var MINIMUM_BREAK_MINUTES = 30;
   var DEFAULT_WEEKLY_HOURS = 32;
   var MINUTES_PER_HOUR = 60;
+  var DATE_FORMATS = {
+    ISO: "iso",
+    DAY_MONTH_YEAR_DOTS: "day-month-year-dots",
+    MONTH_DAY_YEAR_SLASHES: "month-day-year-slashes",
+    MONTH_DAY_DASH: "month-day-dash",
+    MONTH_DAY_SLASH: "month-day-slash",
+    DAY_LONG_MONTH: "day-long-month"
+  };
+  var SUPPORTED_DATE_FORMATS = Object.keys(DATE_FORMATS).map(function (key) {
+    return DATE_FORMATS[key];
+  });
+  var LONG_MONTH_NAMES = {
+    en: [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ],
+    de: [
+      "Januar", "Februar", "M\u00e4rz", "April", "Mai", "Juni",
+      "Juli", "August", "September", "Oktober", "November", "Dezember"
+    ]
+  };
 
   function parseTime(value) {
     var raw = value === null || value === undefined ? "" : String(value).trim();
@@ -207,6 +228,45 @@
     return date;
   }
 
+  function isSupportedDateFormat(value) {
+    return SUPPORTED_DATE_FORMATS.indexOf(value) !== -1;
+  }
+
+  function formatDate(dateKey, format, language) {
+    var date = parseIsoDate(dateKey);
+    var selectedFormat = isSupportedDateFormat(format) ? format : DATE_FORMATS.ISO;
+    var monthNames = LONG_MONTH_NAMES[language] || LONG_MONTH_NAMES.en;
+    var year;
+    var month;
+    var day;
+
+    if (!date) {
+      return String(dateKey || "");
+    }
+
+    year = String(date.getFullYear());
+    month = padTwo(date.getMonth() + 1);
+    day = padTwo(date.getDate());
+
+    if (selectedFormat === DATE_FORMATS.DAY_MONTH_YEAR_DOTS) {
+      return day + "." + month + "." + year;
+    }
+    if (selectedFormat === DATE_FORMATS.MONTH_DAY_YEAR_SLASHES) {
+      return month + "/" + day + "/" + year;
+    }
+    if (selectedFormat === DATE_FORMATS.MONTH_DAY_DASH) {
+      return month + "-" + day;
+    }
+    if (selectedFormat === DATE_FORMATS.MONTH_DAY_SLASH) {
+      return month + "/" + day;
+    }
+    if (selectedFormat === DATE_FORMATS.DAY_LONG_MONTH) {
+      return Number(day) + " " + monthNames[date.getMonth()];
+    }
+
+    return year + "-" + month + "-" + day;
+  }
+
   function addDays(date, amount) {
     var next = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
     next.setDate(next.getDate() + amount);
@@ -397,8 +457,12 @@
     formatDuration: formatDuration,
     formatDecimalHours: formatDecimalHours,
     formatSignedDecimalHours: formatSignedDecimalHours,
+    DATE_FORMATS: Object.assign({}, DATE_FORMATS),
+    SUPPORTED_DATE_FORMATS: SUPPORTED_DATE_FORMATS.slice(),
     toIsoDate: toIsoDate,
     parseIsoDate: parseIsoDate,
+    isSupportedDateFormat: isSupportedDateFormat,
+    formatDate: formatDate,
     addDays: addDays,
     startOfIsoWeek: startOfIsoWeek,
     endOfIsoWeek: endOfIsoWeek,
