@@ -1,27 +1,27 @@
 :root {
   color-scheme: light;
-  --page: #edf3f1;
+  --page: #f8f4f9;
   --surface: #ffffff;
-  --surface-soft: #f1f6f4;
-  --ink: #17221f;
-  --muted: #52625d;
-  --line: #ccd8d3;
-  --line-strong: #9dafaa;
-  --accent: #006c67;
-  --accent-strong: #004f4c;
-  --accent-soft: #dff2ef;
-  --weekend: #fff3e5;
-  --weekend-line: #dc9250;
+  --surface-soft: #f4f5f8;
+  --ink: #1c2541;
+  --muted: #5b6377;
+  --line: #d8dbe2;
+  --line-strong: #adb3c0;
+  --accent: #058ed9;
+  --accent-strong: #1c2541;
+  --accent-soft: #e5f3fb;
+  --weekend: #fff2ec;
+  --weekend-line: #ef7b45;
   --positive: #087a45;
   --positive-soft: #ddf3e7;
   --negative: #b3261e;
   --negative-soft: #fde9e7;
-  --warning: #8a5600;
-  --warning-soft: #fff0c7;
-  --shadow: 0 18px 45px rgba(23, 50, 43, 0.12);
+  --warning: #9a4b26;
+  --warning-soft: #ffede4;
+  --shadow: 0 18px 45px rgba(28, 37, 65, 0.13);
   --radius: 8px;
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
@@ -44,9 +44,10 @@ body {
   margin: 0;
   color: var(--ink);
   background:
-    linear-gradient(180deg, #dcefeb 0, rgba(237, 243, 241, 0) 280px) 0 0 / 100% 360px no-repeat,
+    linear-gradient(180deg, rgba(5, 142, 217, 0.12) 0, rgba(248, 244, 249, 0) 280px) 0 0 / 100% 360px no-repeat,
     var(--page);
   letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -66,7 +67,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgba(0, 108, 103, 0.34);
+  outline: 3px solid rgba(5, 142, 217, 0.34);
   outline-offset: 3px;
 }
 
@@ -89,7 +90,7 @@ a:focus-visible {
   left: 10px;
   padding: 9px 12px;
   color: #ffffff;
-  background: var(--accent);
+  background: var(--accent-strong);
   border-radius: 4px;
   transform: translateY(-150%);
 }
@@ -117,6 +118,7 @@ a:focus-visible {
 .overview-heading h2,
 .ledger-heading h2 {
   margin: 0;
+  font-family: var(--font-display);
   font-weight: 650;
   letter-spacing: 0;
 }
@@ -128,7 +130,7 @@ a:focus-visible {
 
 .eyebrow {
   margin: 0 0 7px;
-  color: var(--accent);
+  color: var(--accent-strong);
   font-size: 13px;
   font-weight: 750;
   letter-spacing: 0;
@@ -167,7 +169,7 @@ a:focus-visible {
 }
 
 .button-icon {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 18px;
   line-height: 1;
 }
@@ -175,7 +177,7 @@ a:focus-visible {
 .button-secondary {
   border-color: var(--line-strong);
   background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 2px 8px rgba(23, 50, 43, 0.06);
+  box-shadow: 0 2px 8px rgba(28, 37, 65, 0.06);
 }
 
 .button-secondary:hover,
@@ -184,11 +186,11 @@ a:focus-visible {
   border-color: var(--accent);
   color: var(--accent-strong);
   background: var(--surface);
-  box-shadow: 0 3px 10px rgba(23, 50, 43, 0.1);
+  box-shadow: 0 3px 10px rgba(28, 37, 65, 0.1);
 }
 
 .button-quiet {
-  color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .button:active,
@@ -200,7 +202,7 @@ a:focus-visible {
 .icon-button {
   width: 44px;
   padding: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 20px;
 }
 
@@ -221,7 +223,7 @@ a:focus-visible {
   flex: 0 0 auto;
   border-radius: 50%;
   background: var(--line-strong);
-  box-shadow: 0 0 0 3px rgba(82, 98, 93, 0.1);
+  box-shadow: 0 0 0 3px rgba(91, 99, 119, 0.12);
 }
 
 .save-status[data-tone="success"] .status-dot {
@@ -266,7 +268,7 @@ a:focus-visible {
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   background: var(--surface);
-  box-shadow: 0 2px 8px rgba(23, 50, 43, 0.05);
+  box-shadow: 0 2px 8px rgba(28, 37, 65, 0.05);
 }
 
 .period-picker select,
@@ -288,7 +290,7 @@ a:focus-visible {
   width: 92px;
   padding: 0 10px;
   text-align: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
 }
 
@@ -316,7 +318,7 @@ a:focus-visible {
 
 .number-field:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 108, 103, 0.15);
+  box-shadow: 0 0 0 3px rgba(5, 142, 217, 0.16);
 }
 
 .number-field input {
@@ -326,7 +328,7 @@ a:focus-visible {
   border: 0;
   outline: 0;
   background: transparent;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
@@ -390,7 +392,7 @@ a:focus-visible {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: 0 8px 24px rgba(23, 50, 43, 0.07);
+  box-shadow: 0 8px 24px rgba(28, 37, 65, 0.08);
 }
 
 .summary-metric {
@@ -414,7 +416,7 @@ a:focus-visible {
 .summary-metric dd {
   overflow: hidden;
   margin: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 24px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
@@ -516,8 +518,8 @@ thead th {
   height: 48px;
   padding: 0 14px;
   color: #ffffff;
-  background: #174f4c;
-  border-bottom: 1px solid #0e3b39;
+  background: #1c2541;
+  border-bottom: 1px solid #11182d;
   font-size: 12px;
   font-weight: 750;
   text-align: left;
@@ -563,7 +565,7 @@ tbody tr:last-child td {
 }
 
 .date-line time {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
 }
@@ -599,8 +601,8 @@ tbody tr:last-child td {
 
 .day-row.is-adjacent th,
 .day-row.is-adjacent td {
-  color: #66736e;
-  background-image: linear-gradient(rgba(231, 237, 234, 0.62), rgba(231, 237, 234, 0.62));
+  color: #697084;
+  background-image: linear-gradient(rgba(216, 219, 226, 0.62), rgba(216, 219, 226, 0.62));
 }
 
 .day-row.is-adjacent.is-weekend th,
@@ -614,12 +616,12 @@ tbody tr:last-child td {
 }
 
 .day-row.is-today .date-line time {
-  color: var(--accent);
+  color: var(--accent-strong);
   font-weight: 800;
 }
 
 .day-row.is-future:not(.is-today) {
-  color: #64716c;
+  color: #6b7284;
 }
 
 .day-row.has-error th,
@@ -640,7 +642,7 @@ tbody tr:last-child td {
   border-radius: 4px;
   outline: 0;
   background: var(--surface-soft);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 15px;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -657,7 +659,7 @@ tbody tr:last-child td {
 .time-input:focus {
   border-color: var(--accent);
   background: var(--surface);
-  box-shadow: 0 0 0 3px rgba(0, 108, 103, 0.15);
+  box-shadow: 0 0 0 3px rgba(5, 142, 217, 0.16);
 }
 
 .time-input[aria-invalid="true"] {
@@ -674,7 +676,7 @@ tbody tr:last-child td {
 .decimal-value,
 .balance-value {
   display: block;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -685,7 +687,7 @@ tbody tr:last-child td {
   display: block;
   min-height: 16px;
   margin-top: 4px;
-  color: var(--accent);
+  color: var(--accent-strong);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
@@ -721,8 +723,8 @@ tbody tr:last-child td {
   height: 54px;
   padding-top: 8px;
   padding-bottom: 8px;
-  color: #253d37;
-  background: #e2eeea;
+  color: var(--ink);
+  background: #edf4f8;
   border-bottom: 1px solid var(--line-strong);
 }
 
