@@ -1,17 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-design="default-gradient">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <title>Timesheet</title>
   <link rel="stylesheet" href="styles.css">
+  <script defer src="js/i18n.js"></script>
   <script defer src="js/core.js"></script>
   <script defer src="js/storage.js"></script>
   <script defer src="js/app.js"></script>
 </head>
 <body data-app-status="loading">
-  <a class="skip-link" href="#timesheetTable">Skip to timesheet</a>
+  <a class="skip-link" href="#timesheetTable" data-i18n="skip.timesheet">Skip to timesheet</a>
 
   <div class="app-shell">
     <header class="app-header">
@@ -24,11 +25,11 @@
             </svg>
           </span>
           <h1>Timesheet</h1>
-          <span class="app-version" data-app-version>v0.3</span>
+          <span class="app-version" data-app-version>v0.4</span>
         </div>
       </div>
 
-      <button id="menuButton" class="icon-button mobile-menu-button" type="button" aria-label="Open menu" aria-controls="headerActions" aria-expanded="false">
+      <button id="menuButton" class="icon-button mobile-menu-button" type="button" aria-label="Open menu" data-i18n-aria-label="menu.open" aria-controls="headerActions" aria-expanded="false">
         <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M4 6h16M4 12h16M4 18h16"></path>
         </svg>
@@ -37,50 +38,50 @@
       <div id="headerActions" class="header-actions" data-open="false">
         <p id="saveStatus" class="save-status" data-tone="neutral" role="status" aria-live="polite">
           <span class="status-dot" aria-hidden="true"></span>
-          <span data-status-text>Loading</span>
+          <span data-status-text data-i18n="status.loading">Loading</span>
         </p>
         <button id="exportButton" class="button button-secondary" type="button">
           <span class="button-icon" aria-hidden="true">&#8595;</span>
-          Backup
+          <span data-i18n="action.backup">Backup</span>
         </button>
         <button id="restoreButton" class="button button-secondary" type="button">
           <span class="button-icon" aria-hidden="true">&#8593;</span>
-          Restore
+          <span data-i18n="action.restore">Restore</span>
         </button>
         <button id="settingsButton" class="button button-secondary" type="button">
           <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
             <circle cx="12" cy="12" r="3"></circle>
           </svg>
-          Preferences
+          <span data-i18n="action.preferences">Preferences</span>
         </button>
         <input id="restoreInput" class="visually-hidden" type="file" accept="application/json,.json" tabindex="-1">
       </div>
     </header>
 
     <main>
-      <section class="period-bar" aria-label="Timesheet period and schedule">
-        <nav class="period-navigation" aria-label="Month navigation">
-          <button id="previousMonth" class="icon-button" type="button" aria-label="Previous month" title="Previous month">
+      <section class="period-bar" aria-label="Timesheet period and schedule" data-i18n-aria-label="period.label">
+        <nav class="period-navigation" aria-label="Month navigation" data-i18n-aria-label="period.navigation">
+          <button id="previousMonth" class="icon-button" type="button" aria-label="Previous month" title="Previous month" data-i18n-aria-label="period.previousMonth" data-i18n-title="period.previousMonth">
             <span aria-hidden="true">&#8592;</span>
           </button>
 
           <div class="period-picker">
-            <label class="visually-hidden" for="monthSelect">Month</label>
-            <select id="monthSelect" aria-label="Month"></select>
+            <label class="visually-hidden" for="monthSelect" data-i18n="period.month">Month</label>
+            <select id="monthSelect" aria-label="Month" data-i18n-aria-label="period.month"></select>
 
-            <label class="visually-hidden" for="yearInput">Year</label>
-            <input id="yearInput" class="year-input" type="number" min="1900" max="9999" step="1" inputmode="numeric" aria-label="Year">
+            <label class="visually-hidden" for="yearInput" data-i18n="period.year">Year</label>
+            <input id="yearInput" class="year-input" type="number" min="1900" max="9999" step="1" inputmode="numeric" aria-label="Year" data-i18n-aria-label="period.year">
           </div>
 
-          <button id="nextMonth" class="icon-button" type="button" aria-label="Next month" title="Next month">
+          <button id="nextMonth" class="icon-button" type="button" aria-label="Next month" title="Next month" data-i18n-aria-label="period.nextMonth" data-i18n-title="period.nextMonth">
             <span aria-hidden="true">&#8594;</span>
           </button>
-          <button id="todayButton" class="button button-quiet" type="button">Today</button>
+          <button id="todayButton" class="button button-quiet" type="button" data-i18n="period.today">Today</button>
         </nav>
 
         <div class="schedule-control">
-          <label for="weeklyHours">Weekly hours</label>
+          <label for="weeklyHours" data-i18n="schedule.weeklyHours">Weekly hours</label>
           <div class="number-field">
             <input id="weeklyHours" type="number" min="0" max="168" step="0.1" inputmode="decimal" aria-describedby="scheduleMessage dailyTarget">
             <span aria-hidden="true">h</span>
@@ -97,59 +98,61 @@
           <p id="summaryCutoff" class="summary-cutoff"></p>
         </div>
 
-        <dl class="summary-strip" aria-label="Monthly summary">
+        <dl class="summary-strip" aria-label="Monthly summary" data-i18n-aria-label="summary.label">
           <div class="summary-metric">
-            <dt>Worked</dt>
+            <dt data-i18n="summary.worked">Worked</dt>
             <dd id="monthWorked">--</dd>
             <span id="monthWorkedDecimal" class="metric-detail">--</span>
           </div>
           <div class="summary-metric">
-            <dt>Expected</dt>
+            <dt data-i18n="summary.expected">Expected</dt>
             <dd id="monthExpected">--</dd>
-            <span class="metric-detail">decimal hours</span>
+            <span id="monthExpectedDecimal" class="metric-detail">--</span>
           </div>
           <div class="summary-metric">
-            <dt>Planned month</dt>
+            <dt data-i18n="summary.plannedMonth">Planned month</dt>
             <dd id="monthPlanned">--</dd>
-            <span class="metric-detail">Monday to Friday</span>
+            <span class="metric-detail" data-i18n="summary.mondayFriday">Monday to Friday</span>
           </div>
           <div id="monthBalanceMetric" class="summary-metric summary-balance" data-balance="neutral">
-            <dt>Balance</dt>
+            <dt data-i18n="summary.balance">Balance</dt>
             <dd id="monthBalance">--</dd>
-            <span class="metric-detail">against expected</span>
+            <span class="metric-detail" data-i18n="summary.againstExpected">against expected</span>
           </div>
         </dl>
       </section>
 
       <section class="ledger-section" aria-labelledby="ledgerHeading">
         <div class="ledger-heading">
-          <h2 id="ledgerHeading">Daily ledger</h2>
-          <p>Monday to Sunday</p>
+          <h2 id="ledgerHeading" data-i18n="ledger.title">Daily ledger</h2>
+          <p data-i18n="ledger.mondaySunday">Monday to Sunday</p>
         </div>
 
         <div class="table-frame">
           <table id="timesheetTable">
-            <caption class="visually-hidden">Daily times and weekly summaries for the selected month</caption>
+            <caption class="visually-hidden" data-i18n="ledger.caption">Daily times and weekly summaries for the selected month</caption>
             <colgroup>
               <col class="date-column">
               <col class="time-column">
               <col class="time-column">
               <col class="time-column">
               <col class="time-column">
+              <col class="absence-column">
               <col class="result-column">
               <col class="decimal-column">
               <col class="balance-column">
             </colgroup>
             <thead>
               <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Start</th>
-                <th scope="col">Finish</th>
-                <th scope="col">Break start</th>
-                <th scope="col">Break finish</th>
-                <th scope="col">Worked</th>
-                <th scope="col">Decimal</th>
-                <th scope="col">Balance</th>
+                <th scope="col" data-i18n="column.date">Date</th>
+                <th scope="col" data-i18n="column.start">Start</th>
+                <th scope="col" data-i18n="column.finish">Finish</th>
+                <th scope="col" data-i18n="column.breakStart">Break start</th>
+                <th scope="col" data-i18n="column.breakFinish">Break finish</th>
+                <th scope="col" class="absence-heading" data-i18n="column.absence">Absence</th>
+                <th scope="col" data-i18n="column.worked">Worked</th>
+                <th scope="col" data-i18n="column.decimal">Decimal</th>
+                <th scope="col" data-i18n="column.balance">Balance</th>
               </tr>
             </thead>
             <tbody id="ledgerBody"></tbody>
@@ -161,8 +164,8 @@
 
   <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
     <header class="settings-dialog-header">
-      <h2 id="settingsTitle">Preferences</h2>
-      <button id="settingsCloseButton" class="icon-button settings-close-button" type="button" aria-label="Close preferences" title="Close preferences">
+      <h2 id="settingsTitle" data-i18n="preferences.title">Preferences</h2>
+      <button id="settingsCloseButton" class="icon-button settings-close-button" type="button" aria-label="Close preferences" title="Close preferences" data-i18n-aria-label="preferences.close" data-i18n-title="preferences.close">
         <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M18 6 6 18M6 6l12 12"></path>
         </svg>
@@ -171,16 +174,10 @@
 
     <div class="settings-dialog-body">
       <section class="settings-section" aria-labelledby="displaySettingsHeading">
-        <h3 id="displaySettingsHeading">Display</h3>
+        <h3 id="displaySettingsHeading" data-i18n="preferences.display">Display</h3>
 
         <div class="setting-row">
-          <span class="setting-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M8 2v4M16 2v4M3 10h18"></path>
-              <rect width="18" height="18" x="3" y="4" rx="2"></rect>
-            </svg>
-          </span>
-          <label for="dateFormatSelect">Date format</label>
+          <label for="dateFormatSelect" data-i18n="preferences.dateFormat">Date format</label>
           <select id="dateFormatSelect">
             <option value="iso">YYYY-MM-DD</option>
             <option value="day-month-year-dots">DD.MM.YYYY</option>
@@ -191,35 +188,31 @@
           </select>
         </div>
 
-        <div class="setting-row is-disabled">
-          <span class="setting-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 22V4M5 4c5-3 9 3 14 0v11c-5 3-9-3-14 0"></path>
-            </svg>
-          </span>
-          <label for="languageSelect">Language</label>
-          <select id="languageSelect" disabled aria-disabled="true" title="Language selection is planned for a future release">
-            <option value="en">English</option>
-            <option value="de">German</option>
-          </select>
+        <div class="setting-row">
+          <label for="languageSelect" data-i18n="preferences.language">Language</label>
+          <select id="languageSelect"></select>
         </div>
 
-        <div class="setting-row is-disabled">
-          <span class="setting-icon design-swatch" aria-hidden="true"></span>
-          <label for="designSelect">Design</label>
-          <select id="designSelect" disabled aria-disabled="true" title="More designs are planned for a future release">
-            <option value="default-gradient">Default gradient</option>
-          </select>
+        <div class="setting-row">
+          <label for="designSelect" data-i18n="preferences.design">Design</label>
+          <div class="design-select-control">
+            <select id="designSelect" class="design-select" data-preview="default-gradient">
+              <option value="default-gradient" data-i18n="design.defaultGradient">Morning Fog</option>
+              <option value="midnight-fog" data-i18n="design.midnightFog">Midnight Fog</option>
+              <option value="ember-coast" data-i18n="design.emberCoast">Ember Coast</option>
+            </select>
+            <span class="design-preview" aria-hidden="true"></span>
+          </div>
         </div>
       </section>
 
       <section class="settings-section about-section" aria-labelledby="aboutHeading">
-        <h3 id="aboutHeading">About</h3>
-        <p class="about-product" data-about-version>Timesheet v0.3</p>
+        <h3 id="aboutHeading" data-i18n="preferences.about">About</h3>
+        <p class="about-product" data-about-version>Timesheet v0.4</p>
         <div class="about-details">
-          <p>Local work time tracker.</p>
-          <p>MIT licence.</p>
-          <a href="https://github.com/reery/Timesheet" target="_blank" rel="noopener noreferrer" aria-label="Timesheet repository on GitHub (opens in a new tab)">https://github.com/reery/Timesheet</a>
+          <p data-i18n="about.localTracker">Local work time tracker.</p>
+          <p data-i18n="about.license">MIT licence.</p>
+          <a href="https://github.com/reery/Timesheet" target="_blank" rel="noopener noreferrer" aria-label="Timesheet repository on GitHub (opens in a new tab)" data-i18n-aria-label="about.repository">https://github.com/reery/Timesheet</a>
         </div>
       </section>
     </div>

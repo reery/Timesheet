@@ -1,14 +1,21 @@
 (function (root, factory) {
   "use strict";
 
-  var api = factory();
+  var i18n = root.TimesheetI18n;
+  var api;
+
+  if (!i18n && typeof require === "function") {
+    i18n = require("./i18n.js");
+  }
+
+  api = factory(i18n);
 
   if (typeof module === "object" && module.exports) {
     module.exports = api;
   }
 
   root.TimesheetCore = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (i18n) {
   "use strict";
 
   var AUTOMATIC_BREAK_THRESHOLD_MINUTES = 6 * 60;
@@ -26,17 +33,6 @@
   var SUPPORTED_DATE_FORMATS = Object.keys(DATE_FORMATS).map(function (key) {
     return DATE_FORMATS[key];
   });
-  var LONG_MONTH_NAMES = {
-    en: [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ],
-    de: [
-      "Januar", "Februar", "M\u00e4rz", "April", "Mai", "Juni",
-      "Juli", "August", "September", "Oktober", "November", "Dezember"
-    ]
-  };
-
   function parseTime(value) {
     var raw = value === null || value === undefined ? "" : String(value).trim();
     var hour;
@@ -93,36 +89,51 @@
     var deductedBreakMinutes;
 
     if (start.empty && finish.empty && breakStart.empty && breakFinish.empty) {
-      return result("empty", "", false);
+      return result("empty", "", "", false);
     }
 
     if (start.empty || finish.empty) {
-      return result("incomplete", "Enter both start and finish.", false);
+      return result("incomplete", "shift.startFinish", "Enter both start and finish.", false);
     }
 
     if (!start.valid || !finish.valid) {
-      return result("invalid", "Use a valid 24-hour time.", false);
+      return result("invalid", "shift.validTime", "Use a valid 24-hour time.", false);
     }
 
     if (finish.minutes <= start.minutes) {
-      return result("invalid", "Finish must be later than start on the same day.", false);
+      return result(
+        "invalid",
+        "shift.finishAfterStart",
+        "Finish must be later than start on the same day.",
+        false
+      );
     }
 
     if (breakStart.empty !== breakFinish.empty) {
-      return result("incomplete", "Enter both break start and break finish.", false);
+      return result("incomplete", "shift.breakPair", "Enter both break start and break finish.", false);
     }
 
     if (!breakStart.empty && (!breakStart.valid || !breakFinish.valid)) {
-      return result("invalid", "Use a valid 24-hour break time.", false);
+      return result("invalid", "shift.validBreakTime", "Use a valid 24-hour break time.", false);
     }
 
     if (!breakStart.empty) {
       if (breakFinish.minutes <= breakStart.minutes) {
-        return result("invalid", "Break finish must be later than break start.", false);
+        return result(
+          "invalid",
+          "shift.breakFinishAfterStart",
+          "Break finish must be later than break start.",
+          false
+        );
       }
 
       if (breakStart.minutes < start.minutes || breakFinish.minutes > finish.minutes) {
-        return result("invalid", "The break must be inside the work interval.", false);
+        return result(
+          "invalid",
+          "shift.breakInsideShift",
+          "The break must be inside the work interval.",
+          false
+        );
       }
 
       explicitBreakMinutes = breakFinish.minutes - breakStart.minutes;
@@ -135,6 +146,7 @@
 
     return {
       status: "valid",
+      messageKey: "",
       message: "",
       valid: true,
       complete: true,
@@ -146,9 +158,10 @@
     };
   }
 
-  function result(status, message, complete) {
+  function result(status, messageKey, message, complete) {
     return {
       status: status,
+      messageKey: messageKey,
       message: message,
       valid: status === "empty",
       complete: complete,
@@ -235,7 +248,7 @@
   function formatDate(dateKey, format, language) {
     var date = parseIsoDate(dateKey);
     var selectedFormat = isSupportedDateFormat(format) ? format : DATE_FORMATS.ISO;
-    var monthNames = LONG_MONTH_NAMES[language] || LONG_MONTH_NAMES.en;
+    var monthNames = i18n.getCalendar(language).months;
     var year;
     var month;
     var day;
@@ -410,12 +423,16 @@
     var weeklyHours = getEffectiveWeeklyHours(getMonthKey(dateKey), schedules);
     var targetMinutes = getDailyTargetMinutes(dateKey, weeklyHours);
     var shift = calculateShift(entry || {});
-    var workedMinutes = shift.status === "valid" ? shift.workedMinutes : 0;
-    var evaluated = dateKey <= cutoff || shift.status === "valid";
+    var absence = Boolean(entry && entry.absence === true);
+    var workedMinutes = absence
+      ? targetMinutes
+      : shift.status === "valid" ? shift.workedMinutes : 0;
+    var evaluated = absence || dateKey <= cutoff || shift.status === "valid";
 
     return {
       date: dateKey,
       shift: shift,
+      absence: absence,
       evaluated: evaluated,
       weeklyHours: weeklyHours,
       targetMinutes: targetMinutes,

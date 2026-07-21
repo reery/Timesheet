@@ -1,16 +1,18 @@
 (function (root) {
   "use strict";
 
+  var i18n = root.TimesheetI18n;
   var core = root.TimesheetCore;
   var storageApi = root.TimesheetStorage;
-  var APP_VERSION = "v0.3";
+  var APP_VERSION = "v0.4";
   var MOBILE_MENU_QUERY = "(max-width: 840px)";
-  var MONTH_NAMES = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-  var WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  var EMPTY_ENTRY = { start: "", finish: "", breakStart: "", breakFinish: "" };
+  var EMPTY_ENTRY = {
+    start: "",
+    finish: "",
+    breakStart: "",
+    breakFinish: "",
+    absence: false
+  };
   var today = new Date();
   var todayKey = core.toIsoDate(today);
   var viewDate = new Date(today.getFullYear(), today.getMonth(), 1, 12);
@@ -21,6 +23,7 @@
   var storageWritable = loadResult.ok;
   var viewWeeks = [];
   var elements = {};
+  var currentStatus = null;
   var mobileMenuMedia = root.matchMedia(MOBILE_MENU_QUERY);
 
   function getStorageKey() {
@@ -40,16 +43,16 @@
   function initialize() {
     cacheElements();
     initializeVersion();
-    populateMonthSelect();
-    syncPreferenceControls();
+    populateLanguageSelect();
+    applyPreferences();
     bindEvents();
     initializeVisibleMonth();
     renderMonth();
 
     if (loadResult.message) {
-      setStatus(loadResult.message, "error");
+      setDiagnosticStatus(loadResult, "error");
     } else {
-      setStatus("Saved locally", "success");
+      setStatus("storage.saved", "success");
     }
 
     document.body.dataset.appStatus = "ready";
@@ -67,7 +70,7 @@
       "previousMonth", "monthSelect", "yearInput", "nextMonth", "todayButton",
       "weeklyHours", "scheduleMessage", "dailyTarget", "monthKeyLabel",
       "monthHeading", "summaryCutoff", "monthWorked", "monthWorkedDecimal",
-      "monthExpected", "monthPlanned", "monthBalanceMetric", "monthBalance",
+      "monthExpected", "monthExpectedDecimal", "monthPlanned", "monthBalanceMetric", "monthBalance",
       "timesheetTable", "ledgerBody"
     ].forEach(function (id) {
       elements[id] = document.getElementById(id);
@@ -84,19 +87,96 @@
     });
   }
 
+  function translate(key, parameters, fallback) {
+    var value = key ? i18n.translate(state.preferences.language, key, parameters) : "";
+
+    if ((!value || value === key) && fallback) {
+      return fallback;
+    }
+
+    return value;
+  }
+
+  function translateDiagnostic(key, parameters, fallback) {
+    var resolvedParameters = Object.assign({}, parameters || {});
+
+    if (resolvedParameters.errorKey) {
+      resolvedParameters.error = translate(
+        resolvedParameters.errorKey,
+        resolvedParameters.errorParams,
+        resolvedParameters.error || ""
+      );
+    }
+
+    return translate(key, resolvedParameters, fallback);
+  }
+
+  function translateStaticContent() {
+    document.querySelectorAll("[data-i18n]").forEach(function (element) {
+      element.textContent = translate(element.dataset.i18n);
+    });
+    document.querySelectorAll("[data-i18n-aria-label]").forEach(function (element) {
+      element.setAttribute("aria-label", translate(element.dataset.i18nAriaLabel));
+    });
+    document.querySelectorAll("[data-i18n-title]").forEach(function (element) {
+      element.title = translate(element.dataset.i18nTitle);
+    });
+  }
+
+  function populateLanguageSelect() {
+    elements.languageSelect.innerHTML = "";
+    i18n.SUPPORTED_LANGUAGES.forEach(function (language) {
+      var option = document.createElement("option");
+      option.value = language;
+      option.textContent = i18n.getLanguageName(language);
+      elements.languageSelect.appendChild(option);
+    });
+  }
+
+  function applyLanguage() {
+    document.documentElement.lang = state.preferences.language;
+    translateStaticContent();
+    populateMonthSelect();
+    setHeaderMenuOpen(elements.headerActions.dataset.open === "true");
+
+    if (currentStatus) {
+      renderStatus();
+    }
+  }
+
+  function applyDesign() {
+    var design = storageApi.SUPPORTED_DESIGNS.indexOf(state.preferences.design) !== -1
+      ? state.preferences.design
+      : "default-gradient";
+
+    document.documentElement.dataset.design = design;
+    elements.designSelect.dataset.preview = design;
+  }
+
+  function applyPreferences() {
+    applyLanguage();
+    applyDesign();
+    syncPreferenceControls();
+  }
+
   function syncPreferenceControls() {
     elements.dateFormatSelect.value = state.preferences.dateFormat;
     elements.languageSelect.value = state.preferences.language;
     elements.designSelect.value = state.preferences.design;
+    elements.designSelect.dataset.preview = state.preferences.design;
   }
 
   function populateMonthSelect() {
-    MONTH_NAMES.forEach(function (name, index) {
+    var selectedMonth = String(viewDate.getMonth());
+
+    elements.monthSelect.innerHTML = "";
+    i18n.getCalendar(state.preferences.language).months.forEach(function (name, index) {
       var option = document.createElement("option");
       option.value = String(index);
       option.textContent = name;
       elements.monthSelect.appendChild(option);
     });
+    elements.monthSelect.value = selectedMonth;
   }
 
   function bindEvents() {
@@ -106,6 +186,8 @@
     elements.settingsDialog.addEventListener("click", onSettingsDialogClick);
     elements.settingsDialog.addEventListener("close", onSettingsDialogClose);
     elements.dateFormatSelect.addEventListener("change", onDateFormatChange);
+    elements.languageSelect.addEventListener("change", onLanguageChange);
+    elements.designSelect.addEventListener("change", onDesignChange);
     document.addEventListener("click", onDocumentClick);
     document.addEventListener("keydown", onDocumentKeydown);
     if (typeof mobileMenuMedia.addEventListener === "function") {
@@ -131,6 +213,7 @@
     elements.weeklyHours.addEventListener("blur", onScheduleBlur);
     elements.ledgerBody.addEventListener("input", onTimeInput);
     elements.ledgerBody.addEventListener("focusout", onTimeBlur);
+    elements.ledgerBody.addEventListener("change", onAbsenceChange);
     elements.exportButton.addEventListener("click", function () {
       closeHeaderMenu();
       downloadBackup();
@@ -155,7 +238,7 @@
 
     elements.headerActions.dataset.open = expanded ? "true" : "false";
     elements.menuButton.setAttribute("aria-expanded", expanded ? "true" : "false");
-    elements.menuButton.setAttribute("aria-label", expanded ? "Close menu" : "Open menu");
+    elements.menuButton.setAttribute("aria-label", translate(expanded ? "menu.close" : "menu.open"));
   }
 
   function onDocumentClick(event) {
@@ -221,6 +304,35 @@
     renderMonth();
   }
 
+  function onLanguageChange() {
+    var value = elements.languageSelect.value;
+
+    if (!i18n.isSupportedLanguage(value)) {
+      syncPreferenceControls();
+      return;
+    }
+
+    state.preferences.language = value;
+    applyLanguage();
+    syncPreferenceControls();
+    persistState();
+    renderMonth();
+  }
+
+  function onDesignChange() {
+    var value = elements.designSelect.value;
+
+    if (storageApi.SUPPORTED_DESIGNS.indexOf(value) === -1) {
+      syncPreferenceControls();
+      return;
+    }
+
+    state.preferences.design = value;
+    applyDesign();
+    syncPreferenceControls();
+    persistState();
+  }
+
   function initializeVisibleMonth() {
     var result = storageApi.ensureMonthSchedule(state, core.getMonthKey(viewDate));
     if (result.changed && storageWritable) {
@@ -228,28 +340,54 @@
     }
   }
 
-  function setStatus(message, tone) {
+  function setStatus(key, tone, parameters, fallback) {
+    currentStatus = {
+      key: key,
+      parameters: parameters || {},
+      fallback: fallback || "",
+      tone: tone || "neutral"
+    };
+    renderStatus();
+  }
+
+  function renderStatus() {
+    var message = translateDiagnostic(
+      currentStatus.key,
+      currentStatus.parameters,
+      currentStatus.fallback
+    );
+
     elements.statusText.textContent = message;
-    elements.saveStatus.dataset.tone = tone || "neutral";
+    elements.saveStatus.dataset.tone = currentStatus.tone;
     elements.saveStatus.title = message;
+  }
+
+  function setDiagnosticStatus(result, tone) {
+    setStatus(
+      result.messageKey || result.errorKey,
+      tone,
+      result.messageParams || result.errorParams,
+      result.message || result.error
+    );
   }
 
   function persistState() {
     var result;
 
     if (!storageWritable) {
-      setStatus("This edit was not saved. Restore a valid backup to replace unreadable storage.", "error");
+      setStatus("storage.unreadableEdit", "error");
       return false;
     }
 
     result = storageApi.saveState(browserStorage, state, storageKey);
-    setStatus(result.message, result.ok ? "success" : "error");
+    setDiagnosticStatus(result, result.ok ? "success" : "error");
     return result.ok;
   }
 
   function renderMonth() {
     var monthKey = core.getMonthKey(viewDate);
     var weeklyHours = core.getEffectiveWeeklyHours(monthKey, state.schedules);
+    var monthName = i18n.getCalendar(state.preferences.language).months[viewDate.getMonth()];
 
     elements.monthSelect.value = String(viewDate.getMonth());
     elements.yearInput.value = String(viewDate.getFullYear());
@@ -257,8 +395,14 @@
     elements.weeklyHours.setAttribute("aria-invalid", "false");
     elements.scheduleMessage.textContent = "";
     elements.monthKeyLabel.textContent = monthKey;
-    elements.monthHeading.textContent = MONTH_NAMES[viewDate.getMonth()] + " " + viewDate.getFullYear();
-    document.title = elements.monthHeading.textContent + " - Timesheet";
+    elements.monthHeading.textContent = translate("month.heading", {
+      month: monthName,
+      year: viewDate.getFullYear()
+    });
+    document.title = translate("title.month", {
+      month: monthName,
+      year: viewDate.getFullYear()
+    });
 
     viewWeeks = core.buildMonthWeeks(viewDate.getFullYear(), viewDate.getMonth());
     elements.ledgerBody.innerHTML = viewWeeks.map(renderWeek).join("");
@@ -272,10 +416,12 @@
 
     return rows
       + '<tr class="week-summary" data-week-index="' + weekIndex + '">'
-      + '<th scope="row" colspan="5">'
-      + '<span class="week-label">Week ' + week.week + '</span>'
-      + '<span class="week-range">' + formatDisplayDate(firstDate) + ' to '
-      + formatDisplayDate(lastDate) + '</span>'
+      + '<th scope="row" colspan="6">'
+      + '<span class="week-label">' + escapeHtml(translate("week.label", { week: week.week })) + '</span>'
+      + '<span class="week-range">' + escapeHtml(translate("range.to", {
+        start: formatDisplayDate(firstDate),
+        end: formatDisplayDate(lastDate)
+      })) + '</span>'
       + '<span class="week-target" data-week-target></span>'
       + '</th>'
       + '<td class="result-cell"><output class="result-value" data-week-worked>--</output></td>'
@@ -291,6 +437,7 @@
     var classes = ["day-row"];
     var day = date.getDay();
     var messageId = "message-" + dateKey;
+    var weekdayName = i18n.getCalendar(state.preferences.language).weekdays[day];
 
     if (day === 0 || day === 6) {
       classes.push("is-weekend");
@@ -308,13 +455,14 @@
     return '<tr class="' + classes.join(" ") + '" data-date="' + dateKey + '">'
       + '<th scope="row" class="date-cell">'
       + '<div class="date-line"><time datetime="' + dateKey + '">' + formatDisplayDate(dateKey) + '</time>'
-      + '<span class="weekday">' + WEEKDAY_NAMES[day] + '</span></div>'
+      + '<span class="weekday">' + escapeHtml(weekdayName) + '</span></div>'
       + '<span id="' + messageId + '" class="row-message"></span>'
       + '</th>'
-      + renderTimeCell(dateKey, "start", "Start", entry.start, messageId)
-      + renderTimeCell(dateKey, "finish", "Finish", entry.finish, messageId)
-      + renderTimeCell(dateKey, "breakStart", "Break start", entry.breakStart, messageId)
-      + renderTimeCell(dateKey, "breakFinish", "Break finish", entry.breakFinish, messageId)
+      + renderTimeCell(dateKey, "start", "column.start", entry.start, messageId)
+      + renderTimeCell(dateKey, "finish", "column.finish", entry.finish, messageId)
+      + renderTimeCell(dateKey, "breakStart", "column.breakStart", entry.breakStart, messageId)
+      + renderTimeCell(dateKey, "breakFinish", "column.breakFinish", entry.breakFinish, messageId)
+      + renderAbsenceCell(dateKey, entry.absence === true)
       + '<td class="result-cell"><output class="result-value" data-day-worked>--</output>'
       + '<span class="work-note" data-work-note></span></td>'
       + '<td class="decimal-cell"><output class="decimal-value" data-day-decimal>--</output></td>'
@@ -322,11 +470,28 @@
       + '</tr>';
   }
 
-  function renderTimeCell(dateKey, field, label, value, messageId) {
+  function renderTimeCell(dateKey, field, labelKey, value, messageId) {
+    var label = translate(labelKey);
+    var inputLabel = translate("time.inputLabel", {
+      label: label,
+      date: formatDisplayDate(dateKey)
+    });
+
     return '<td><input class="time-input" type="text" inputmode="numeric" maxlength="5"'
       + ' autocomplete="off" spellcheck="false" placeholder="--:--"'
-      + ' aria-label="' + label + ' for ' + formatDisplayDate(dateKey) + '" aria-describedby="' + messageId + '"'
+      + ' aria-label="' + escapeHtml(inputLabel) + '" aria-describedby="' + messageId + '"'
       + ' aria-invalid="false" data-field="' + field + '" value="' + escapeHtml(value) + '"></td>';
+  }
+
+  function renderAbsenceCell(dateKey, checked) {
+    var inputLabel = translate("absence.inputLabel", {
+      date: formatDisplayDate(dateKey)
+    });
+
+    return '<td class="absence-cell"><label class="absence-control">'
+      + '<input class="absence-input" type="checkbox" aria-label="'
+      + escapeHtml(inputLabel) + '"' + (checked ? " checked" : "") + '>'
+      + '</label></td>';
   }
 
   function formatDisplayDate(dateKey) {
@@ -366,19 +531,28 @@
     var balanceOutput = row.querySelector("[data-day-balance]");
     var workNote = row.querySelector("[data-work-note]");
     var rowMessage = row.querySelector(".row-message");
+    var absenceInput = row.querySelector(".absence-input");
 
+    hasError = !summary.absence && hasError;
     row.classList.toggle("has-error", hasError);
+    row.classList.toggle("is-absence", summary.absence);
+    absenceInput.checked = summary.absence;
     row.querySelectorAll(".time-input").forEach(function (input) {
+      input.disabled = summary.absence;
       input.setAttribute("aria-invalid", hasError ? "true" : "false");
     });
-    rowMessage.textContent = hasError ? shift.message : "";
-    rowMessage.title = hasError ? shift.message : "";
+    rowMessage.textContent = hasError ? translate(shift.messageKey, {}, shift.message) : "";
+    rowMessage.title = rowMessage.textContent;
 
-    if (shift.status === "valid") {
-      workedOutput.textContent = core.formatDuration(shift.workedMinutes);
-      decimalOutput.textContent = core.formatDecimalHours(shift.workedMinutes);
+    if (summary.absence) {
+      workedOutput.textContent = core.formatDuration(summary.workedMinutes);
+      decimalOutput.textContent = core.formatDecimalHours(summary.workedMinutes);
+      workNote.textContent = translate("work.absence");
+    } else if (shift.status === "valid") {
+      workedOutput.textContent = core.formatDuration(summary.workedMinutes);
+      decimalOutput.textContent = core.formatDecimalHours(summary.workedMinutes);
       workNote.textContent = shift.automaticBreakMinutes > 0
-        ? shift.automaticBreakMinutes + "m auto break"
+        ? translate("work.autoBreak", { minutes: shift.automaticBreakMinutes })
         : "";
     } else {
       workedOutput.textContent = "--";
@@ -388,9 +562,11 @@
 
     setBalanceOutput(balanceOutput, summary.balanceMinutes, summary.evaluated);
     balanceOutput.title = summary.evaluated
-      ? core.formatDecimalHours(summary.workedMinutes) + " worked - "
-        + core.formatDecimalHours(summary.targetMinutes) + " target"
-      : "Not due yet";
+      ? translate("balance.detail", {
+        worked: core.formatDecimalHours(summary.workedMinutes),
+        target: core.formatDecimalHours(summary.targetMinutes)
+      })
+      : translate("summary.notDueYet");
   }
 
   function updateWeekRow(row) {
@@ -399,8 +575,8 @@
     var hasEvaluatedDate = summary.evaluatedDays > 0;
 
     row.querySelector("[data-week-target]").textContent = hasEvaluatedDate
-      ? core.formatDecimalHours(summary.expectedMinutes) + "h expected"
-      : "Not due yet";
+      ? translate("summary.expectedHours", { hours: core.formatDecimalHours(summary.expectedMinutes) })
+      : translate("summary.notDueYet");
     row.querySelector("[data-week-worked]").textContent = hasEvaluatedDate
       ? core.formatDuration(summary.workedMinutes)
       : "--";
@@ -423,25 +599,32 @@
     var cutoff = monthEnd < todayKey ? monthEnd : todayKey;
 
     if (!hasEvaluatedDate) {
-      elements.summaryCutoff.textContent = "Not due yet";
+      elements.summaryCutoff.textContent = translate("summary.notDueYet");
     } else if (!hasDueDate) {
-      elements.summaryCutoff.textContent = "Entered future shifts";
+      elements.summaryCutoff.textContent = translate("summary.enteredFuture");
     } else {
-      elements.summaryCutoff.textContent = "Through " + formatDisplayDate(cutoff)
-        + (hasEnteredFutureDate ? " + entered future shifts" : "");
+      elements.summaryCutoff.textContent = translate(
+        hasEnteredFutureDate ? "summary.throughFuture" : "summary.through",
+        { date: formatDisplayDate(cutoff) }
+      );
     }
     elements.monthWorked.textContent = hasEvaluatedDate
       ? core.formatDuration(summary.workedMinutes)
       : "--";
     elements.monthWorkedDecimal.textContent = hasEvaluatedDate
-      ? core.formatDecimalHours(summary.workedMinutes) + " decimal hours"
+      ? translate("summary.decimalHours", { hours: core.formatDecimalHours(summary.workedMinutes) })
       : "--";
     elements.monthExpected.textContent = hasEvaluatedDate
-      ? core.formatDecimalHours(summary.expectedMinutes) + " h"
+      ? core.formatDuration(summary.expectedMinutes)
       : "--";
-    elements.monthPlanned.textContent = core.formatDecimalHours(summary.plannedMinutes) + " h";
+    elements.monthExpectedDecimal.textContent = hasEvaluatedDate
+      ? translate("summary.decimalHours", { hours: core.formatDecimalHours(summary.expectedMinutes) })
+      : "--";
+    elements.monthPlanned.textContent = translate("summary.hours", {
+      hours: core.formatDecimalHours(summary.plannedMinutes)
+    });
     elements.monthBalance.textContent = hasEvaluatedDate
-      ? core.formatSignedDecimalHours(summary.balanceMinutes) + " h"
+      ? translate("summary.hours", { hours: core.formatSignedDecimalHours(summary.balanceMinutes) })
       : "--";
     elements.monthBalanceMetric.dataset.balance = hasEvaluatedDate
       ? getBalanceTone(summary.balanceMinutes)
@@ -453,7 +636,9 @@
     var weeklyHours = core.getEffectiveWeeklyHours(monthKey, state.schedules);
     var dailyMinutes = weeklyHours * 60 / 5;
 
-    elements.dailyTarget.textContent = core.formatDecimalHours(dailyMinutes) + " h each weekday";
+    elements.dailyTarget.textContent = translate("schedule.eachWeekday", {
+      hours: core.formatDecimalHours(dailyMinutes)
+    });
   }
 
   function setBalanceOutput(output, minutes, evaluated) {
@@ -483,7 +668,8 @@
         start: "",
         finish: "",
         breakStart: "",
-        breakFinish: ""
+        breakFinish: "",
+        absence: false
       };
     }
 
@@ -527,6 +713,20 @@
     renderComputedValues();
   }
 
+  function onAbsenceChange(event) {
+    var input = event.target.closest(".absence-input");
+    var row;
+
+    if (!input) {
+      return;
+    }
+
+    row = input.closest(".day-row");
+    getOrCreateEntry(row.dataset.date).absence = input.checked;
+    persistState();
+    renderComputedValues();
+  }
+
   function onScheduleInput() {
     var raw = elements.weeklyHours.value.trim();
     var monthKey = core.getMonthKey(viewDate);
@@ -534,7 +734,7 @@
     var valid = raw !== "" && core.isValidWeeklyHours(value);
 
     elements.weeklyHours.setAttribute("aria-invalid", valid ? "false" : "true");
-    elements.scheduleMessage.textContent = valid ? "" : "Enter 0 to 168 hours.";
+    elements.scheduleMessage.textContent = valid ? "" : translate("validation.hours");
 
     if (!valid) {
       return;
@@ -561,7 +761,7 @@
 
     if (!Number.isInteger(year) || year < 1900 || year > 9999) {
       elements.yearInput.value = String(viewDate.getFullYear());
-      setStatus("Choose a year from 1900 to 9999.", "warning");
+      setStatus("validation.year", "warning");
       return;
     }
 
@@ -591,7 +791,7 @@
     var tableFrame;
     var targetTop;
 
-    if (input) {
+    if (input && !input.disabled) {
       input.focus({ preventScroll: true });
       input.select();
       row = input.closest("tr");
@@ -620,9 +820,9 @@
       root.setTimeout(function () {
         URL.revokeObjectURL(url);
       }, 0);
-      setStatus("Backup downloaded", "success");
+      setStatus("backup.downloaded", "success");
     } catch (error) {
-      setStatus("The backup could not be created.", "error");
+      setStatus("backup.createFailed", "error");
     }
   }
 
@@ -640,7 +840,7 @@
       elements.restoreInput.value = "";
     });
     reader.addEventListener("error", function () {
-      setStatus("The selected backup could not be read.", "error");
+      setStatus("backup.readFailed", "error");
       elements.restoreInput.value = "";
     });
     reader.readAsText(file);
@@ -652,16 +852,14 @@
     var result;
 
     if (!parsed.valid) {
-      setStatus(parsed.error, "error");
+      setDiagnosticStatus(parsed, "error");
       return;
     }
 
-    if (!root.confirm(
-      "Restore this backup? Imported entries and monthly hours will replace matching local values."
-      + (parsed.includesPreferences ? " Imported preferences will replace local preferences." : "")
-      + " Other local dates will stay."
-    )) {
-      setStatus("Restore cancelled", "neutral");
+    if (!root.confirm(translate(
+      parsed.includesPreferences ? "restore.confirmPreferences" : "restore.confirm"
+    ))) {
+      setStatus("restore.cancelled", "neutral");
       return;
     }
 
@@ -672,15 +870,15 @@
     result = storageApi.saveState(browserStorage, merged, storageKey);
 
     if (!result.ok) {
-      setStatus(result.message, "error");
+      setDiagnosticStatus(result, "error");
       return;
     }
 
     state = merged;
     storageWritable = true;
-    syncPreferenceControls();
+    applyPreferences();
     renderMonth();
-    setStatus("Backup restored and saved", "success");
+    setStatus("restore.saved", "success");
   }
 
   root.TimesheetApp = {

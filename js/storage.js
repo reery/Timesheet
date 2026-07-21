@@ -2,28 +2,32 @@
   "use strict";
 
   var core = root.TimesheetCore;
+  var i18n = root.TimesheetI18n;
   var api;
 
   if (!core && typeof require === "function") {
     core = require("./core.js");
   }
+  if (!i18n && typeof require === "function") {
+    i18n = require("./i18n.js");
+  }
 
-  api = factory(core, root);
+  api = factory(core, i18n, root);
 
   if (typeof module === "object" && module.exports) {
     module.exports = api;
   }
 
   root.TimesheetStorage = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (core, host) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (core, i18n, host) {
   "use strict";
 
   var STORAGE_KEY = "local-timesheet.state.v1";
   var SCHEMA_VERSION = 1;
   var BACKUP_FORMAT = "local-timesheet-backup";
   var ENTRY_FIELDS = ["start", "finish", "breakStart", "breakFinish"];
-  var SUPPORTED_LANGUAGES = ["en", "de"];
-  var SUPPORTED_DESIGNS = ["default-gradient"];
+  var SUPPORTED_LANGUAGES = i18n.SUPPORTED_LANGUAGES.slice();
+  var SUPPORTED_DESIGNS = ["default-gradient", "midnight-fog", "ember-coast"];
 
   function createDefaultPreferences() {
     return {
@@ -61,6 +65,7 @@
     ENTRY_FIELDS.forEach(function (field) {
       copy[field] = entry[field] || "";
     });
+    copy.absence = entry.absence === true;
 
     return copy;
   }
@@ -97,15 +102,15 @@
     var invalidSchedule;
 
     if (!isPlainObject(candidate)) {
-      return invalid("The saved data is not an object.");
+      return invalid("The saved data is not an object.", "storage.invalid.object");
     }
 
     if (candidate.version !== SCHEMA_VERSION) {
-      return invalid("The saved data uses an unsupported version.");
+      return invalid("The saved data uses an unsupported version.", "storage.invalid.version");
     }
 
     if (!isPlainObject(candidate.entries) || !isPlainObject(candidate.schedules)) {
-      return invalid("The saved data has an invalid structure.");
+      return invalid("The saved data has an invalid structure.", "storage.invalid.structure");
     }
 
     if (hasOwn(candidate, "preferences")) {
@@ -113,7 +118,7 @@
           || SUPPORTED_LANGUAGES.indexOf(candidate.preferences.language) === -1
           || SUPPORTED_DESIGNS.indexOf(candidate.preferences.design) === -1
           || !core.isSupportedDateFormat(candidate.preferences.dateFormat)) {
-        return invalid("The saved preferences are invalid.");
+        return invalid("The saved preferences are invalid.", "storage.invalid.preferences");
       }
 
       normalized.preferences = clonePreferences(candidate.preferences);
@@ -140,12 +145,23 @@
         return true;
       }
 
+      if (hasOwn(entry, "absence") && typeof entry.absence !== "boolean") {
+        invalidEntry = dateKey;
+        return true;
+      }
+
+      normalizedEntry.absence = entry.absence === true;
+
       normalized.entries[dateKey] = normalizedEntry;
       return false;
     });
 
     if (invalidEntry) {
-      return invalid("The entry for " + invalidEntry + " is invalid.");
+      return invalid(
+        "The entry for " + invalidEntry + " is invalid.",
+        "storage.invalid.entry",
+        { key: invalidEntry }
+      );
     }
 
     Object.keys(candidate.schedules).some(function (monthKey) {
@@ -160,14 +176,24 @@
     });
 
     if (invalidSchedule) {
-      return invalid("The schedule for " + invalidSchedule + " is invalid.");
+      return invalid(
+        "The schedule for " + invalidSchedule + " is invalid.",
+        "storage.invalid.schedule",
+        { key: invalidSchedule }
+      );
     }
 
-    return { valid: true, state: normalized, error: "" };
+    return { valid: true, state: normalized, error: "", errorKey: "", errorParams: {} };
   }
 
-  function invalid(message) {
-    return { valid: false, state: createEmptyState(), error: message };
+  function invalid(message, errorKey, errorParams) {
+    return {
+      valid: false,
+      state: createEmptyState(),
+      error: message,
+      errorKey: errorKey || "",
+      errorParams: errorParams || {}
+    };
   }
 
   function getBrowserStorage() {
@@ -188,7 +214,9 @@
       return {
         ok: false,
         state: createEmptyState(),
-        message: "Browser storage is unavailable. Changes will not survive a reload."
+        message: "Browser storage is unavailable. Changes will not survive a reload.",
+        messageKey: "storage.unavailableReload",
+        messageParams: {}
       };
     }
 
@@ -198,12 +226,14 @@
       return {
         ok: false,
         state: createEmptyState(),
-        message: "The saved timesheet could not be read. Changes will not survive a reload."
+        message: "The saved timesheet could not be read. Changes will not survive a reload.",
+        messageKey: "storage.readFailedReload",
+        messageParams: {}
       };
     }
 
     if (raw === null) {
-      return { ok: true, state: createEmptyState(), message: "" };
+      return { ok: true, state: createEmptyState(), message: "", messageKey: "", messageParams: {} };
     }
 
     try {
@@ -212,7 +242,9 @@
       return {
         ok: false,
         state: createEmptyState(),
-        message: "The saved timesheet is corrupted. A blank view was opened without overwriting it."
+        message: "The saved timesheet is corrupted. A blank view was opened without overwriting it.",
+        messageKey: "storage.corruptedBlank",
+        messageParams: {}
       };
     }
 
@@ -221,11 +253,16 @@
       return {
         ok: false,
         state: createEmptyState(),
-        message: validation.error + " A blank view was opened without overwriting it."
+        message: validation.error + " A blank view was opened without overwriting it.",
+        messageKey: "storage.invalidBlank",
+        messageParams: {
+          errorKey: validation.errorKey,
+          errorParams: validation.errorParams
+        }
       };
     }
 
-    return { ok: true, state: validation.state, message: "" };
+    return { ok: true, state: validation.state, message: "", messageKey: "", messageParams: {} };
   }
 
   function saveState(storage, state, storageKey) {
@@ -233,18 +270,36 @@
     var key = storageKey || STORAGE_KEY;
 
     if (!storage) {
-      return { ok: false, message: "Browser storage is unavailable. This edit was not saved." };
+      return {
+        ok: false,
+        message: "Browser storage is unavailable. This edit was not saved.",
+        messageKey: "storage.unavailableEdit",
+        messageParams: {}
+      };
     }
 
     if (!validation.valid) {
-      return { ok: false, message: validation.error + " This edit was not saved." };
+      return {
+        ok: false,
+        message: validation.error + " This edit was not saved.",
+        messageKey: "storage.invalidEdit",
+        messageParams: {
+          errorKey: validation.errorKey,
+          errorParams: validation.errorParams
+        }
+      };
     }
 
     try {
       storage.setItem(key, JSON.stringify(validation.state));
-      return { ok: true, message: "Saved locally" };
+      return { ok: true, message: "Saved locally", messageKey: "storage.saved", messageParams: {} };
     } catch (error) {
-      return { ok: false, message: "Browser storage rejected this edit. It was not saved." };
+      return {
+        ok: false,
+        message: "Browser storage rejected this edit. It was not saved.",
+        messageKey: "storage.rejectedEdit",
+        messageParams: {}
+      };
     }
   }
 
@@ -288,14 +343,17 @@
     try {
       candidate = JSON.parse(text);
     } catch (error) {
-      return invalid("The selected file is not valid JSON.");
+      return invalid("The selected file is not valid JSON.", "backup.invalidJson");
     }
 
     if (!isPlainObject(candidate)
         || candidate.format !== BACKUP_FORMAT
         || candidate.version !== SCHEMA_VERSION
         || typeof candidate.exportedAt !== "string") {
-      return invalid("The selected file is not a supported timesheet backup.");
+      return invalid(
+        "The selected file is not a supported timesheet backup.",
+        "backup.unsupported"
+      );
     }
 
     includesPreferences = isPlainObject(candidate.data) && hasOwn(candidate.data, "preferences");
@@ -309,7 +367,9 @@
       state: validation.state,
       exportedAt: candidate.exportedAt,
       includesPreferences: includesPreferences,
-      error: ""
+      error: "",
+      errorKey: "",
+      errorParams: {}
     };
   }
 
