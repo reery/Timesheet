@@ -7,8 +7,13 @@
   <title>Timesheet</title>
   <link rel="stylesheet" href="styles.css">
   <script defer src="js/i18n.js"></script>
+  <script defer src="js/designs.js"></script>
   <script defer src="js/core.js"></script>
+  <script defer src="js/model.js"></script>
   <script defer src="js/storage.js"></script>
+  <script defer src="js/menu.js"></script>
+  <script defer src="js/preferences.js"></script>
+  <script defer src="js/ledger.js"></script>
   <script defer src="js/app.js"></script>
 </head>
 <body data-app-status="loading">
@@ -24,8 +29,8 @@
               <path d="M8 2v4M16 2v4M3 9h18M7 13h3M14 13h3M7 17h3M14 17h3"></path>
             </svg>
           </span>
-          <h1>Timesheet</h1>
-          <span class="app-version" data-app-version>v0.4</span>
+          <h1 data-i18n="app.name">Timesheet</h1>
+          <span class="app-version" data-app-version>v0.5</span>
         </div>
       </div>
 
@@ -40,15 +45,15 @@
           <span class="status-dot" aria-hidden="true"></span>
           <span data-status-text data-i18n="status.loading">Loading</span>
         </p>
-        <button id="exportButton" class="button button-secondary" type="button">
+        <button id="exportButton" class="button button-secondary" type="button" data-action="backup">
           <span class="button-icon" aria-hidden="true">&#8595;</span>
           <span data-i18n="action.backup">Backup</span>
         </button>
-        <button id="restoreButton" class="button button-secondary" type="button">
+        <button id="restoreButton" class="button button-secondary" type="button" data-action="restore">
           <span class="button-icon" aria-hidden="true">&#8593;</span>
           <span data-i18n="action.restore">Restore</span>
         </button>
-        <button id="settingsButton" class="button button-secondary" type="button">
+        <button id="settingsButton" class="button button-secondary" type="button" data-action="preferences">
           <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
             <circle cx="12" cy="12" r="3"></circle>
@@ -80,6 +85,24 @@
           <button id="todayButton" class="button button-quiet" type="button" data-i18n="period.today">Today</button>
         </nav>
 
+        <dl class="summary-strip" aria-label="Monthly summary" data-i18n-aria-label="summary.label">
+          <div class="summary-metric">
+            <dt data-i18n="summary.worked">Worked</dt>
+            <dd id="monthWorked" class="metric-value">--</dd>
+            <dd id="monthWorkedDecimal" class="metric-detail">--</dd>
+          </div>
+          <div class="summary-metric">
+            <dt data-i18n="summary.expected">Expected</dt>
+            <dd id="monthExpected" class="metric-value">--</dd>
+            <dd id="monthExpectedDecimal" class="metric-detail">--</dd>
+          </div>
+          <div id="monthBalanceMetric" class="summary-metric summary-balance" data-balance="neutral">
+            <dt data-i18n="summary.balance">Balance</dt>
+            <dd id="monthBalance" class="metric-value">--</dd>
+            <dd class="metric-detail" data-i18n="summary.againstExpected">against expected</dd>
+          </div>
+        </dl>
+
         <div class="schedule-control">
           <label for="weeklyHours" data-i18n="schedule.weeklyHours">Weekly hours</label>
           <div class="number-field">
@@ -91,37 +114,6 @@
         </div>
       </section>
 
-      <section class="month-overview" aria-labelledby="monthHeading">
-        <div class="overview-heading">
-          <p id="monthKeyLabel" class="eyebrow"></p>
-          <h2 id="monthHeading"></h2>
-          <p id="summaryCutoff" class="summary-cutoff"></p>
-        </div>
-
-        <dl class="summary-strip" aria-label="Monthly summary" data-i18n-aria-label="summary.label">
-          <div class="summary-metric">
-            <dt data-i18n="summary.worked">Worked</dt>
-            <dd id="monthWorked">--</dd>
-            <span id="monthWorkedDecimal" class="metric-detail">--</span>
-          </div>
-          <div class="summary-metric">
-            <dt data-i18n="summary.expected">Expected</dt>
-            <dd id="monthExpected">--</dd>
-            <span id="monthExpectedDecimal" class="metric-detail">--</span>
-          </div>
-          <div class="summary-metric">
-            <dt data-i18n="summary.plannedMonth">Planned month</dt>
-            <dd id="monthPlanned">--</dd>
-            <span class="metric-detail" data-i18n="summary.mondayFriday">Monday to Friday</span>
-          </div>
-          <div id="monthBalanceMetric" class="summary-metric summary-balance" data-balance="neutral">
-            <dt data-i18n="summary.balance">Balance</dt>
-            <dd id="monthBalance">--</dd>
-            <span class="metric-detail" data-i18n="summary.againstExpected">against expected</span>
-          </div>
-        </dl>
-      </section>
-
       <section class="ledger-section" aria-labelledby="ledgerHeading">
         <div class="ledger-heading">
           <h2 id="ledgerHeading" data-i18n="ledger.title">Daily ledger</h2>
@@ -131,29 +123,9 @@
         <div class="table-frame">
           <table id="timesheetTable">
             <caption class="visually-hidden" data-i18n="ledger.caption">Daily times and weekly summaries for the selected month</caption>
-            <colgroup>
-              <col class="date-column">
-              <col class="time-column">
-              <col class="time-column">
-              <col class="time-column">
-              <col class="time-column">
-              <col class="absence-column">
-              <col class="result-column">
-              <col class="decimal-column">
-              <col class="balance-column">
-            </colgroup>
+            <colgroup id="timesheetColgroup"></colgroup>
             <thead>
-              <tr>
-                <th scope="col" data-i18n="column.date">Date</th>
-                <th scope="col" data-i18n="column.start">Start</th>
-                <th scope="col" data-i18n="column.finish">Finish</th>
-                <th scope="col" data-i18n="column.breakStart">Break start</th>
-                <th scope="col" data-i18n="column.breakFinish">Break finish</th>
-                <th scope="col" class="absence-heading" data-i18n="column.absence">Absence</th>
-                <th scope="col" data-i18n="column.worked">Worked</th>
-                <th scope="col" data-i18n="column.decimal">Decimal</th>
-                <th scope="col" data-i18n="column.balance">Balance</th>
-              </tr>
+              <tr id="ledgerHeaderRow"></tr>
             </thead>
             <tbody id="ledgerBody"></tbody>
           </table>
@@ -196,11 +168,7 @@
         <div class="setting-row">
           <label for="designSelect" data-i18n="preferences.design">Design</label>
           <div class="design-select-control">
-            <select id="designSelect" class="design-select" data-preview="default-gradient">
-              <option value="default-gradient" data-i18n="design.defaultGradient">Morning Fog</option>
-              <option value="midnight-fog" data-i18n="design.midnightFog">Midnight Fog</option>
-              <option value="ember-coast" data-i18n="design.emberCoast">Ember Coast</option>
-            </select>
+            <select id="designSelect" class="design-select" data-preview="default-gradient"></select>
             <span class="design-preview" aria-hidden="true"></span>
           </div>
         </div>
@@ -208,7 +176,7 @@
 
       <section class="settings-section about-section" aria-labelledby="aboutHeading">
         <h3 id="aboutHeading" data-i18n="preferences.about">About</h3>
-        <p class="about-product" data-about-version>Timesheet v0.4</p>
+        <p class="about-product" data-about-version>Timesheet v0.5</p>
         <div class="about-details">
           <p data-i18n="about.localTracker">Local work time tracker.</p>
           <p data-i18n="about.license">MIT licence.</p>

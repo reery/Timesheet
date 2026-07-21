@@ -194,7 +194,7 @@ a:focus-visible {
 .app-shell {
   width: min(1480px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 32px 0 56px;
+  padding: 16px 0 56px;
 }
 
 .app-header {
@@ -233,7 +233,6 @@ a:focus-visible {
 }
 
 .brand-block h1,
-.overview-heading h2,
 .ledger-heading h2 {
   margin: 0;
   font-family: var(--font-display);
@@ -260,19 +259,9 @@ a:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.eyebrow {
-  margin: 0 0 7px;
-  color: var(--accent-strong);
-  font-size: 13px;
-  font-weight: 750;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
 .header-actions,
 .period-navigation,
-.period-picker,
-.schedule-control {
+.period-picker {
   display: flex;
   align-items: center;
 }
@@ -340,6 +329,16 @@ a:focus-visible {
 .icon-button:active {
   background: var(--accent-soft);
   box-shadow: none;
+}
+
+.button:disabled,
+.icon-button:disabled {
+  color: var(--muted);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .icon-button {
@@ -606,11 +605,11 @@ body.settings-open {
 }
 
 .period-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
   align-items: center;
-  justify-content: space-between;
-  gap: 32px;
-  min-height: 88px;
+  gap: 16px;
+  padding: 12px 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -651,15 +650,27 @@ body.settings-open {
 }
 
 .schedule-control {
-  position: relative;
-  gap: 12px;
-  min-height: 52px;
+  display: grid;
+  grid-template-areas:
+    "label input"
+    "target target"
+    "message message";
+  grid-template-columns: max-content max-content;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 2px;
+  min-width: 0;
 }
 
 .schedule-control > label {
+  grid-area: label;
   color: var(--muted);
   font-size: 14px;
   font-weight: 700;
+}
+
+.schedule-control .number-field {
+  grid-area: input;
 }
 
 .number-field {
@@ -700,60 +711,40 @@ body.settings-open {
 }
 
 .field-message {
-  position: absolute;
-  top: 47px;
-  right: 0;
+  grid-area: message;
+  justify-self: end;
   margin: 0;
   color: var(--negative);
   font-size: 12px;
   font-weight: 650;
+  text-align: right;
 }
 
 .daily-target {
-  min-width: 158px;
+  grid-area: target;
+  justify-self: end;
+  min-width: 0;
   margin: 0;
   color: var(--muted);
   font-size: 13px;
-}
-
-.month-overview {
-  display: grid;
-  grid-template-columns: minmax(210px, 0.8fr) minmax(760px, 3fr);
-  align-items: stretch;
-  gap: 42px;
-  padding: 40px 0 36px;
-}
-
-.overview-heading {
-  align-self: center;
-}
-
-.overview-heading h2 {
-  font-size: 28px;
-  line-height: 1.2;
-}
-
-.summary-cutoff {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
+  text-align: right;
 }
 
 .summary-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
   margin: 0;
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: 0 8px 24px rgba(var(--shadow-rgb), 0.08);
+  box-shadow: 0 4px 14px rgba(var(--shadow-rgb), 0.07);
 }
 
 .summary-metric {
   min-width: 0;
-  padding: 19px 20px 17px;
+  padding: 10px 12px;
   border-left: 1px solid var(--line);
 }
 
@@ -762,18 +753,23 @@ body.settings-open {
 }
 
 .summary-metric dt {
-  margin-bottom: 8px;
+  margin-bottom: 3px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
   text-transform: uppercase;
 }
 
 .summary-metric dd {
-  overflow: hidden;
   margin: 0;
+}
+
+.summary-metric .metric-value {
+  overflow: hidden;
   font-family: var(--font-sans);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
@@ -781,12 +777,14 @@ body.settings-open {
   white-space: nowrap;
 }
 
-.metric-detail {
+.summary-metric .metric-detail {
   display: block;
-  min-height: 16px;
-  margin-top: 5px;
+  min-height: 14px;
+  margin: 2px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .summary-balance[data-balance="positive"] {
@@ -805,7 +803,7 @@ body.settings-open {
 }
 
 .ledger-section {
-  margin-top: 2px;
+  margin-top: 12px;
 }
 
 .ledger-heading {
@@ -838,7 +836,7 @@ body.settings-open {
   overscroll-behavior: contain;
 }
 
-table {
+#timesheetTable {
   width: 100%;
   min-width: 1106px;
   border-collapse: separate;
@@ -847,31 +845,31 @@ table {
   font-variant-numeric: tabular-nums;
 }
 
-.date-column {
+#timesheetTable .date-column {
   width: 224px;
 }
 
-.time-column {
+#timesheetTable .time-column {
   width: 114px;
 }
 
-.absence-column {
+#timesheetTable .absence-column {
   width: 104px;
 }
 
-.result-column {
+#timesheetTable .result-column {
   width: 112px;
 }
 
-.decimal-column {
+#timesheetTable .decimal-column {
   width: 100px;
 }
 
-.balance-column {
+#timesheetTable .balance-column {
   width: 110px;
 }
 
-thead th {
+#timesheetTable thead th {
   position: sticky;
   z-index: 5;
   top: 0;
@@ -886,23 +884,23 @@ thead th {
   text-transform: uppercase;
 }
 
-thead th:first-child {
+#timesheetTable thead th:first-child {
   z-index: 6;
   left: 0;
 }
 
-thead th:nth-last-child(-n + 3) {
+#timesheetTable thead th:nth-last-child(-n + 3) {
   text-align: right;
 }
 
-thead th.absence-heading {
+#timesheetTable thead th.absence-heading {
   padding-right: 6px;
   padding-left: 6px;
   text-align: center;
 }
 
-tbody th,
-tbody td {
+#timesheetTable tbody th,
+#timesheetTable tbody td {
   height: 68px;
   padding: 9px 13px;
   border-bottom: 1px solid var(--line);
@@ -910,12 +908,12 @@ tbody td {
   vertical-align: middle;
 }
 
-tbody tr:last-child th,
-tbody tr:last-child td {
+#timesheetTable tbody tr:last-child th,
+#timesheetTable tbody tr:last-child td {
   border-bottom: 0;
 }
 
-.date-cell {
+#timesheetTable .date-cell {
   position: sticky;
   z-index: 2;
   left: 0;
@@ -923,27 +921,27 @@ tbody tr:last-child td {
   text-align: left;
 }
 
-.date-line {
+#timesheetTable .date-line {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
 }
 
-.date-line time {
+#timesheetTable .date-line time {
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
 }
 
-.weekday {
+#timesheetTable .weekday {
   color: var(--muted);
   font-size: 12px;
   font-weight: 750;
   text-transform: uppercase;
 }
 
-.row-message {
+#timesheetTable .row-message {
   display: block;
   overflow: hidden;
   min-height: 16px;
@@ -956,51 +954,51 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
-.day-row.is-weekend th,
-.day-row.is-weekend td {
+#timesheetTable .day-row.is-weekend th,
+#timesheetTable .day-row.is-weekend td {
   background: var(--weekend);
 }
 
-.day-row.is-weekend .date-cell {
+#timesheetTable .day-row.is-weekend .date-cell {
   box-shadow: inset 3px 0 0 var(--weekend-line), 1px 0 0 var(--line);
 }
 
-.day-row.is-adjacent th,
-.day-row.is-adjacent td {
+#timesheetTable .day-row.is-adjacent th,
+#timesheetTable .day-row.is-adjacent td {
   color: var(--adjacent-ink);
   background-image: linear-gradient(var(--adjacent-overlay), var(--adjacent-overlay));
 }
 
-.day-row.is-adjacent.is-weekend th,
-.day-row.is-adjacent.is-weekend td {
+#timesheetTable .day-row.is-adjacent.is-weekend th,
+#timesheetTable .day-row.is-adjacent.is-weekend td {
   background-color: var(--weekend);
 }
 
-.day-row.is-today .date-cell {
+#timesheetTable .day-row.is-today .date-cell {
   box-shadow: inset 4px 0 0 var(--accent), 1px 0 0 var(--line);
   background: var(--accent-soft);
 }
 
-.day-row.is-today .date-line time {
+#timesheetTable .day-row.is-today .date-line time {
   color: var(--accent-strong);
   font-weight: 800;
 }
 
-.day-row.is-future:not(.is-today) {
+#timesheetTable .day-row.is-future:not(.is-today) {
   color: var(--future-ink);
 }
 
-.day-row.has-error th,
-.day-row.has-error td {
+#timesheetTable .day-row.has-error th,
+#timesheetTable .day-row.has-error td {
   background-color: var(--error-row);
 }
 
-.day-row.has-error.is-weekend th,
-.day-row.has-error.is-weekend td {
+#timesheetTable .day-row.has-error.is-weekend th,
+#timesheetTable .day-row.has-error.is-weekend td {
   background-color: var(--weekend);
 }
 
-.time-input {
+#timesheetTable .time-input {
   width: 100%;
   height: 44px;
   padding: 0 9px;
@@ -1014,31 +1012,31 @@ tbody tr:last-child td {
   text-align: center;
 }
 
-.is-weekend .time-input {
+#timesheetTable .is-weekend .time-input {
   background: var(--weekend-control);
 }
 
-.time-input:hover {
+#timesheetTable .time-input:hover {
   border-color: var(--line-strong);
 }
 
-.time-input:focus {
+#timesheetTable .time-input:focus {
   border-color: var(--accent);
   background: var(--surface);
   box-shadow: 0 0 0 3px var(--focus-shadow);
 }
 
-.time-input[aria-invalid="true"] {
+#timesheetTable .time-input[aria-invalid="true"] {
   border-color: var(--negative);
 }
 
-.absence-cell {
+#timesheetTable .absence-cell {
   padding-right: 4px;
   padding-left: 4px;
   text-align: center;
 }
 
-.absence-control {
+#timesheetTable .absence-control {
   display: inline-flex;
   width: 44px;
   height: 44px;
@@ -1047,7 +1045,7 @@ tbody tr:last-child td {
   cursor: pointer;
 }
 
-.absence-input {
+#timesheetTable .absence-input {
   display: grid;
   width: 18px;
   height: 18px;
@@ -1062,7 +1060,7 @@ tbody tr:last-child td {
   cursor: pointer;
 }
 
-.absence-input::before {
+#timesheetTable .absence-input::before {
   width: 9px;
   height: 5px;
   border: solid var(--checkbox-mark);
@@ -1071,16 +1069,16 @@ tbody tr:last-child td {
   transform: translateY(-1px) rotate(-45deg) scale(0);
 }
 
-.absence-input:checked {
+#timesheetTable .absence-input:checked {
   border-color: var(--accent);
   background: var(--accent);
 }
 
-.absence-input:checked::before {
+#timesheetTable .absence-input:checked::before {
   transform: translateY(-1px) rotate(-45deg) scale(1);
 }
 
-.day-row.is-absence .time-input:disabled {
+#timesheetTable .day-row.is-absence .time-input:disabled {
   color: var(--muted);
   border-color: var(--line);
   background: var(--surface-soft);
@@ -1089,19 +1087,19 @@ tbody tr:last-child td {
   -webkit-text-fill-color: var(--muted);
 }
 
-.day-row.is-absence .work-note {
+#timesheetTable .day-row.is-absence .work-note {
   color: var(--muted);
 }
 
-.result-cell,
-.decimal-cell,
-.balance-cell {
+#timesheetTable .result-cell,
+#timesheetTable .decimal-cell,
+#timesheetTable .balance-cell {
   text-align: right;
 }
 
-.result-value,
-.decimal-value,
-.balance-value {
+#timesheetTable .result-value,
+#timesheetTable .decimal-value,
+#timesheetTable .balance-value {
   display: block;
   font-family: var(--font-sans);
   font-size: 14px;
@@ -1110,7 +1108,7 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
-.work-note {
+#timesheetTable .work-note {
   display: block;
   min-height: 16px;
   margin-top: 4px;
@@ -1120,7 +1118,7 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
-.balance-value {
+#timesheetTable .balance-value {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
@@ -1130,23 +1128,23 @@ tbody tr:last-child td {
   border-radius: 4px;
 }
 
-.balance-value[data-balance="positive"] {
+#timesheetTable .balance-value[data-balance="positive"] {
   color: var(--positive);
   background: var(--positive-soft);
 }
 
-.balance-value[data-balance="negative"] {
+#timesheetTable .balance-value[data-balance="negative"] {
   color: var(--negative);
   background: var(--negative-soft);
 }
 
-.balance-value[data-balance="neutral"] {
+#timesheetTable .balance-value[data-balance="neutral"] {
   color: var(--muted);
   background: var(--surface-soft);
 }
 
-.week-summary th,
-.week-summary td {
+#timesheetTable .week-summary th,
+#timesheetTable .week-summary td {
   height: 54px;
   padding-top: 8px;
   padding-bottom: 8px;
@@ -1155,7 +1153,7 @@ tbody tr:last-child td {
   border-bottom: 1px solid var(--line-strong);
 }
 
-.week-summary th {
+#timesheetTable .week-summary th {
   position: sticky;
   z-index: 2;
   left: 0;
@@ -1164,24 +1162,24 @@ tbody tr:last-child td {
   text-align: left;
 }
 
-.week-label {
+#timesheetTable .week-label {
   color: var(--accent-strong);
   font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.week-range,
-.week-target {
+#timesheetTable .week-range,
+#timesheetTable .week-target {
   margin-left: 12px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
 }
 
-.week-summary .result-value,
-.week-summary .decimal-value,
-.week-summary .balance-value {
+#timesheetTable .week-summary .result-value,
+#timesheetTable .week-summary .decimal-value,
+#timesheetTable .week-summary .balance-value {
   font-weight: 800;
 }
 
@@ -1192,28 +1190,89 @@ noscript {
   text-align: center;
 }
 
+@media (max-width: 1180px) {
+  .period-bar {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .period-navigation,
+  .schedule-control {
+    justify-self: start;
+  }
+
+  .schedule-control {
+    grid-template-areas:
+      "label input target"
+      "message message message";
+    grid-template-columns: max-content max-content max-content;
+  }
+
+  .field-message,
+  .daily-target {
+    justify-self: start;
+    text-align: left;
+  }
+
+  #timesheetTable {
+    min-width: 1074px;
+  }
+
+  #timesheetTable .date-column {
+    width: 192px;
+  }
+
+  #timesheetTable .date-line {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  #timesheetTable .row-message {
+    max-width: 192px;
+  }
+}
+
 @media (max-width: 980px) {
   .app-shell {
     width: min(100% - 30px, 1480px);
   }
+}
 
-  .month-overview {
-    grid-template-columns: 1fr;
-    gap: 18px;
-    padding-top: 28px;
+@media (min-width: 841px) and (max-width: 980px) {
+  .app-header {
+    gap: 8px;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .header-actions .button {
+    padding-right: 6px;
+    padding-left: 6px;
+    font-size: 12px;
+  }
+
+  .save-status {
+    gap: 4px;
+    min-width: 104px;
+    margin-right: 0;
+    font-size: 12px;
   }
 }
 
 @media (max-width: 840px) {
   .app-shell {
     width: 100%;
-    padding: 20px 14px 34px;
+    padding: 8px 14px 34px;
   }
 
   .app-header {
     position: sticky;
     z-index: 40;
     top: 0;
+    gap: 12px;
     min-height: 64px;
     padding: 8px 2px;
     background: transparent;
@@ -1245,6 +1304,7 @@ noscript {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 44px;
     margin-left: auto;
     border-color: var(--line-strong);
     background: var(--control-surface);
@@ -1286,20 +1346,12 @@ noscript {
   }
 
   .period-bar {
-    display: block;
-    padding: 18px 0 20px;
+    padding: 12px 0;
   }
 
   .period-navigation {
-    width: 100%;
-  }
-
-  .period-picker {
-    flex: 1 1 auto;
-  }
-
-  .period-picker select {
-    width: calc(100% - 92px);
+    width: fit-content;
+    max-width: 100%;
   }
 
   .period-navigation .button-quiet {
@@ -1307,54 +1359,28 @@ noscript {
     padding-left: 5px;
   }
 
-  .schedule-control {
-    margin-top: 18px;
-  }
-
-  .daily-target {
-    min-width: 0;
-  }
-
-  .summary-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .summary-metric {
-    padding-right: 15px;
-    padding-left: 15px;
+    padding-right: 10px;
+    padding-left: 10px;
   }
 
-  .summary-metric:nth-child(3) {
-    border-top: 1px solid var(--line);
-    border-left: 0;
-  }
-
-  .summary-metric:nth-child(4) {
-    border-top: 1px solid var(--line);
-  }
-
-  .summary-metric dd {
-    font-size: 21px;
+  .summary-metric .metric-value {
+    font-size: 18px;
   }
 
   .table-frame {
     max-height: calc(100vh - 96px);
   }
 
-  table {
+  #timesheetTable {
     min-width: 1060px;
   }
 
-  .date-column {
+  #timesheetTable .date-column {
     width: 160px;
   }
 
-  .date-line {
-    justify-content: flex-start;
-    gap: 8px;
-  }
-
-  .row-message {
+  #timesheetTable .row-message {
     max-width: 160px;
   }
 
@@ -1398,54 +1424,29 @@ noscript {
     flex-wrap: wrap;
   }
 
-  .period-picker {
-    order: -1;
-    flex-basis: 100%;
-  }
-
   .schedule-control {
-    flex-wrap: wrap;
-  }
-
-  .daily-target {
-    order: 2;
-    flex-basis: 100%;
-    padding-left: 0;
-  }
-
-  .field-message {
-    position: static;
-    order: 3;
-    flex-basis: 100%;
+    width: 100%;
+    grid-template-areas:
+      "label label"
+      "input target"
+      "message message";
+    grid-template-columns: max-content minmax(0, 1fr);
   }
 }
 
 @media (max-width: 350px) {
+  .app-version {
+    display: none;
+  }
+
   .setting-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 5px;
   }
 
-  .setting-row > select {
-    width: 100%;
-  }
-
-  .summary-strip {
-    grid-template-columns: 1fr;
-  }
-
   .summary-metric {
-    border-top: 1px solid var(--line);
-    border-left: 0;
-  }
-
-  .summary-metric:first-child {
-    border-top: 0;
-  }
-
-  .summary-metric:nth-child(3),
-  .summary-metric:nth-child(4) {
-    border-left: 0;
+    padding-right: 6px;
+    padding-left: 6px;
   }
 }
 

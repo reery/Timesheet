@@ -22,6 +22,8 @@
   var MINIMUM_BREAK_MINUTES = 30;
   var DEFAULT_WEEKLY_HOURS = 32;
   var MINUTES_PER_HOUR = 60;
+  var MIN_YEAR = 1900;
+  var MAX_YEAR = 9999;
   var DATE_FORMATS = {
     ISO: "iso",
     DAY_MONTH_YEAR_DOTS: "day-month-year-dots",
@@ -89,32 +91,31 @@
     var deductedBreakMinutes;
 
     if (start.empty && finish.empty && breakStart.empty && breakFinish.empty) {
-      return result("empty", "", "", false);
+      return result("empty", "", "");
     }
 
     if (start.empty || finish.empty) {
-      return result("incomplete", "shift.startFinish", "Enter both start and finish.", false);
+      return result("incomplete", "shift.startFinish", "Enter both start and finish.");
     }
 
     if (!start.valid || !finish.valid) {
-      return result("invalid", "shift.validTime", "Use a valid 24-hour time.", false);
+      return result("invalid", "shift.validTime", "Use a valid 24-hour time.");
     }
 
     if (finish.minutes <= start.minutes) {
       return result(
         "invalid",
         "shift.finishAfterStart",
-        "Finish must be later than start on the same day.",
-        false
+        "Finish must be later than start on the same day."
       );
     }
 
     if (breakStart.empty !== breakFinish.empty) {
-      return result("incomplete", "shift.breakPair", "Enter both break start and break finish.", false);
+      return result("incomplete", "shift.breakPair", "Enter both break start and break finish.");
     }
 
     if (!breakStart.empty && (!breakStart.valid || !breakFinish.valid)) {
-      return result("invalid", "shift.validBreakTime", "Use a valid 24-hour break time.", false);
+      return result("invalid", "shift.validBreakTime", "Use a valid 24-hour break time.");
     }
 
     if (!breakStart.empty) {
@@ -122,8 +123,7 @@
         return result(
           "invalid",
           "shift.breakFinishAfterStart",
-          "Break finish must be later than break start.",
-          false
+          "Break finish must be later than break start."
         );
       }
 
@@ -131,8 +131,7 @@
         return result(
           "invalid",
           "shift.breakInsideShift",
-          "The break must be inside the work interval.",
-          false
+          "The break must be inside the work interval."
         );
       }
 
@@ -148,8 +147,6 @@
       status: "valid",
       messageKey: "",
       message: "",
-      valid: true,
-      complete: true,
       grossMinutes: grossMinutes,
       explicitBreakMinutes: explicitBreakMinutes,
       deductedBreakMinutes: deductedBreakMinutes,
@@ -158,13 +155,11 @@
     };
   }
 
-  function result(status, messageKey, message, complete) {
+  function result(status, messageKey, message) {
     return {
       status: status,
       messageKey: messageKey,
       message: message,
-      valid: status === "empty",
-      complete: complete,
       grossMinutes: 0,
       explicitBreakMinutes: 0,
       deductedBreakMinutes: 0,
@@ -239,6 +234,22 @@
     }
 
     return date;
+  }
+
+  function isSupportedYear(value) {
+    return Number.isInteger(value) && value >= MIN_YEAR && value <= MAX_YEAR;
+  }
+
+  function isSupportedDateKey(value) {
+    var date = parseIsoDate(value);
+
+    return Boolean(date && isSupportedYear(date.getFullYear()));
+  }
+
+  function isSupportedMonthKey(value) {
+    var match = String(value || "").match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+
+    return Boolean(match && isSupportedYear(Number(match[1])));
   }
 
   function isSupportedDateFormat(value) {
@@ -324,14 +335,23 @@
     var lastDay = new Date(year, monthIndex + 1, 0, 12);
     var cursor = startOfIsoWeek(firstDay);
     var end = endOfIsoWeek(lastDay);
+    var supportedStart = new Date(MIN_YEAR, 0, 1, 12);
+    var supportedEnd = new Date(MAX_YEAR, 11, 31, 12);
     var weeks = [];
     var dates;
     var weekInfo;
     var index;
 
+    if (!isSupportedYear(year) || monthIndex < 0 || monthIndex > 11) {
+      return weeks;
+    }
+
+    cursor = cursor < supportedStart ? supportedStart : cursor;
+    end = end > supportedEnd ? supportedEnd : end;
+
     while (cursor <= end) {
       dates = [];
-      for (index = 0; index < 7; index += 1) {
+      for (index = 0; index < 7 && addDays(cursor, index) <= end; index += 1) {
         dates.push(toIsoDate(addDays(cursor, index)));
       }
       weekInfo = getIsoWeek(cursor);
@@ -364,19 +384,30 @@
 
   function shiftMonthKey(monthKey, amount) {
     var match = String(monthKey || "").match(/^(\d{4})-(\d{2})$/);
-    var date;
+    var absoluteMonth;
+    var year;
+    var monthIndex;
 
-    if (!match) {
+    if (!match || !isSupportedMonthKey(monthKey) || !Number.isInteger(amount)) {
       return null;
     }
 
-    date = new Date(Number(match[1]), Number(match[2]) - 1 + amount, 1, 12);
-    return getMonthKey(date);
+    absoluteMonth = Number(match[1]) * 12 + Number(match[2]) - 1 + amount;
+    year = Math.floor(absoluteMonth / 12);
+    monthIndex = absoluteMonth % 12;
+
+    if (!isSupportedYear(year)) {
+      return null;
+    }
+
+    return year + "-" + padTwo(monthIndex + 1);
   }
 
   function isValidWeeklyHours(value) {
-    var number = Number(value);
-    return Number.isFinite(number) && number >= 0 && number <= 168;
+    return typeof value === "number"
+      && Number.isFinite(value)
+      && value >= 0
+      && value <= 168;
   }
 
   function getEffectiveWeeklyHours(monthKey, schedules, defaultHours) {
@@ -441,7 +472,7 @@
     };
   }
 
-  function summarizeDates(dateKeys, entries, schedules, todayKey) {
+  function summarizeDaySummaries(days) {
     var summary = {
       workedMinutes: 0,
       expectedMinutes: 0,
@@ -450,8 +481,7 @@
       evaluatedDays: 0
     };
 
-    dateKeys.forEach(function (dateKey) {
-      var day = getDaySummary(dateKey, entries && entries[dateKey], schedules, todayKey);
+    days.forEach(function (day) {
       summary.plannedMinutes += day.targetMinutes;
 
       if (day.evaluated) {
@@ -465,24 +495,29 @@
     return summary;
   }
 
+  function summarizeDates(dateKeys, entries, schedules, todayKey) {
+    return summarizeDaySummaries(dateKeys.map(function (dateKey) {
+      return getDaySummary(dateKey, entries && entries[dateKey], schedules, todayKey);
+    }));
+  }
+
   return {
-    AUTOMATIC_BREAK_THRESHOLD_MINUTES: AUTOMATIC_BREAK_THRESHOLD_MINUTES,
-    MINIMUM_BREAK_MINUTES: MINIMUM_BREAK_MINUTES,
     DEFAULT_WEEKLY_HOURS: DEFAULT_WEEKLY_HOURS,
+    MIN_YEAR: MIN_YEAR,
+    MAX_YEAR: MAX_YEAR,
     parseTime: parseTime,
     calculateShift: calculateShift,
     formatDuration: formatDuration,
     formatDecimalHours: formatDecimalHours,
     formatSignedDecimalHours: formatSignedDecimalHours,
     DATE_FORMATS: Object.assign({}, DATE_FORMATS),
-    SUPPORTED_DATE_FORMATS: SUPPORTED_DATE_FORMATS.slice(),
     toIsoDate: toIsoDate,
     parseIsoDate: parseIsoDate,
+    isSupportedYear: isSupportedYear,
+    isSupportedDateKey: isSupportedDateKey,
+    isSupportedMonthKey: isSupportedMonthKey,
     isSupportedDateFormat: isSupportedDateFormat,
     formatDate: formatDate,
-    addDays: addDays,
-    startOfIsoWeek: startOfIsoWeek,
-    endOfIsoWeek: endOfIsoWeek,
     getIsoWeek: getIsoWeek,
     buildMonthWeeks: buildMonthWeeks,
     getMonthDateKeys: getMonthDateKeys,
@@ -494,6 +529,7 @@
     isWeekday: isWeekday,
     getDailyTargetMinutes: getDailyTargetMinutes,
     getDaySummary: getDaySummary,
+    summarizeDaySummaries: summarizeDaySummaries,
     summarizeDates: summarizeDates
   };
 });

@@ -54,6 +54,41 @@
     equal(core.formatDate("2026-07-20", core.DATE_FORMATS.DAY_LONG_MONTH, "it"), "20 July");
   });
 
+  test("enforces supported period boundaries", function () {
+    equal(core.MIN_YEAR, 1900);
+    equal(core.MAX_YEAR, 9999);
+    equal(core.isSupportedYear(1900), true);
+    equal(core.isSupportedYear(9999), true);
+    equal(core.isSupportedYear(1899), false);
+    equal(core.isSupportedYear(10000), false);
+    equal(core.isSupportedDateKey("1900-01-01"), true);
+    equal(core.isSupportedDateKey("1899-12-31"), false);
+    equal(core.isSupportedMonthKey("9999-12"), true);
+    equal(core.isSupportedMonthKey("10000-01"), false);
+  });
+
+  test("bounds month shifts and the final rendered week", function () {
+    var finalWeeks = core.buildMonthWeeks(9999, 11);
+    var finalDates = finalWeeks[finalWeeks.length - 1].dates;
+
+    equal(core.shiftMonthKey("1900-01", -1), null);
+    equal(core.shiftMonthKey("1900-01", 1), "1900-02");
+    equal(core.shiftMonthKey("9999-12", 1), null);
+    equal(core.shiftMonthKey("9999-12", -1), "9999-11");
+    equal(finalDates[finalDates.length - 1], "9999-12-31");
+    equal(finalDates.length < 7, true);
+  });
+
+  test("requires primitive numeric weekly hours", function () {
+    equal(core.isValidWeeklyHours(0), true);
+    equal(core.isValidWeeklyHours(32.5), true);
+    equal(core.isValidWeeklyHours(168), true);
+    equal(core.isValidWeeklyHours(null), false);
+    equal(core.isValidWeeklyHours(false), false);
+    equal(core.isValidWeeklyHours("32"), false);
+    equal(core.isValidWeeklyHours(""), false);
+  });
+
   test("returns stable validation keys with English fallback messages", function () {
     var incomplete = core.calculateShift({ start: "09:00" });
     var invalidBreak = core.calculateShift({
@@ -221,6 +256,23 @@
     equal(summary.plannedMinutes, 1536);
     equal(summary.balanceMinutes, -372);
     equal(summary.evaluatedDays, 3);
+  });
+
+  test("aggregates precomputed day summaries without recalculating them", function () {
+    var dates = ["2026-07-13", "2026-07-14", "2026-07-17"];
+    var entries = {
+      "2026-07-13": { start: "09:00", finish: "16:00" },
+      "2026-07-17": { absence: true }
+    };
+    var schedules = { "2026-07": 32 };
+    var days = dates.map(function (dateKey) {
+      return core.getDaySummary(dateKey, entries[dateKey], schedules, "2026-07-16");
+    });
+
+    equal(
+      JSON.stringify(core.summarizeDaySummaries(days)),
+      JSON.stringify(core.summarizeDates(dates, entries, schedules, "2026-07-16"))
+    );
   });
 
   test("week totals apply each date's own monthly schedule", function () {
