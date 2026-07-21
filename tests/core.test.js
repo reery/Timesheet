@@ -49,6 +49,24 @@
     equal(core.formatDate("2026-07-20", "unknown", "en"), "2026-07-20");
     equal(core.formatDate("not-a-date", core.DATE_FORMATS.ISO, "en"), "not-a-date");
     equal(core.formatDate("2026-03-05", core.DATE_FORMATS.DAY_LONG_MONTH, "de"), "5 M\u00e4rz");
+    equal(core.formatDate("2026-07-20", core.DATE_FORMATS.DAY_LONG_MONTH, "es"), "20 julio");
+    equal(core.formatDate("2026-08-20", core.DATE_FORMATS.DAY_LONG_MONTH, "fr"), "20 ao\u00fbt");
+    equal(core.formatDate("2026-07-20", core.DATE_FORMATS.DAY_LONG_MONTH, "it"), "20 July");
+  });
+
+  test("returns stable validation keys with English fallback messages", function () {
+    var incomplete = core.calculateShift({ start: "09:00" });
+    var invalidBreak = core.calculateShift({
+      start: "09:00",
+      finish: "16:00",
+      breakStart: "08:30",
+      breakFinish: "09:30"
+    });
+
+    equal(incomplete.messageKey, "shift.startFinish");
+    equal(incomplete.message, "Enter both start and finish.");
+    equal(invalidBreak.messageKey, "shift.breakInsideShift");
+    equal(invalidBreak.message, "The break must be inside the work interval.");
   });
 
   test("applies the automatic break to a seven-hour shift", function () {
@@ -139,6 +157,47 @@
   test("derives a 6.4-hour weekday target from 32 hours", function () {
     equal(core.getDailyTargetMinutes("2026-07-13", 32), 384);
     equal(core.getDailyTargetMinutes("2026-07-18", 32), 0);
+  });
+
+  test("credits an absence with the weekday target and ignores preserved times", function () {
+    var day = core.getDaySummary(
+      "2026-07-20",
+      { start: "09:00", finish: "", absence: true },
+      { "2026-07": 32 },
+      "2026-07-16"
+    );
+    var summary = core.summarizeDates(
+      ["2026-07-20"],
+      { "2026-07-20": { absence: true } },
+      { "2026-07": 32 },
+      "2026-07-16"
+    );
+
+    equal(day.absence, true);
+    equal(day.shift.status, "incomplete");
+    equal(day.evaluated, true);
+    equal(day.targetMinutes, 384);
+    equal(day.workedMinutes, 384);
+    equal(day.balanceMinutes, 0);
+    equal(summary.workedMinutes, 384);
+    equal(summary.expectedMinutes, 384);
+    equal(summary.balanceMinutes, 0);
+    equal(summary.evaluatedDays, 1);
+  });
+
+  test("evaluates a weekend absence without crediting work time", function () {
+    var day = core.getDaySummary(
+      "2026-07-18",
+      { absence: true },
+      { "2026-07": 32 },
+      "2026-07-16"
+    );
+
+    equal(day.absence, true);
+    equal(day.evaluated, true);
+    equal(day.targetMinutes, 0);
+    equal(day.workedMinutes, 0);
+    equal(day.balanceMinutes, 0);
   });
 
   test("inherits the latest prior schedule and keeps explicit months independent", function () {
