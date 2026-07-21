@@ -21,10 +21,10 @@ Open `index.html` in a normal browser window. Keep using the same browser profil
 
 ## Data and preferences
 
-- Changes save immediately to browser `localStorage`.
+- Changes and calculations appear immediately. Rapid typing is saved to browser `localStorage` after a brief pause; pending edits are flushed when leaving a field, backgrounding the page, or navigating away.
 - **Backup** downloads a JSON copy. **Restore** validates and merges a backup, replacing matching entries while preserving other local dates.
 - Restore accepts files up to 10 MiB and rejects states above 50,000 daily entries or 2,400 monthly schedules before applying them.
-- **Preferences** controls date format, language (English, German, Spanish, or French), and design.
+- **Preferences** controls date format, language (English, German, Spanish, or French), and theme.
 - On compact screens, app actions move into the hamburger menu.
 
 ## Tests
@@ -44,7 +44,7 @@ Each page displays its pass/fail result. The app suite uses an isolated storage 
 The project uses classic deferred scripts so it can run directly from `file://` without a build step. Keep dependencies before their consumers in the order used by `index.html`:
 
 1. `js/i18n.js` owns language metadata, calendars, and translation catalogs.
-2. `js/designs.js` owns the design registry.
+2. `js/themes.js` owns the theme registry.
 3. `js/core.js` contains pure time, date, schedule, and summary calculations.
 4. `js/model.js` owns the persisted state schema, normalization, and merging.
 5. `js/storage.js` handles `localStorage` and backup envelopes.
@@ -63,9 +63,9 @@ The application release is v0.5. Persisted state remains on `local-timesheet.sta
 
 Add the same language ID to `LANGUAGE_METADATA`, `CALENDARS`, and `CATALOGS` in `js/i18n.js`. Supply every key from the English catalog; the language selector is populated automatically. Extend the i18n tests for catalog completeness and the app tests for switching behavior.
 
-### Add a design
+### Add a theme
 
-Add an `{ id, labelKey }` descriptor to `js/designs.js`, add the label key to every translation catalog, and define its `html[data-design="id"]` variables in `styles.css`. Add matching `data-preview="id"` styling when the design needs a custom swatch. The preferences selector is populated automatically.
+Add an `{ id, labelKey }` descriptor to `js/themes.js`, add the label key to every translation catalog, and define its `html[data-theme="id"]` variables in `styles.css`. Add matching `data-preview="id"` styling when the theme needs a custom swatch. The preferences selector is populated automatically.
 
 ### Add a ledger field
 

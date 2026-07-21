@@ -3,7 +3,7 @@
 
   var core = root.TimesheetCore;
   var i18n = root.TimesheetI18n;
-  var designs = root.TimesheetDesigns;
+  var themes = root.TimesheetThemes;
   var api;
 
   if (!core && typeof require === "function") {
@@ -12,21 +12,22 @@
   if (!i18n && typeof require === "function") {
     i18n = require("./i18n.js");
   }
-  if (!designs && typeof require === "function") {
-    designs = require("./designs.js");
+  if (!themes && typeof require === "function") {
+    themes = require("./themes.js");
   }
 
-  api = factory(core, i18n, designs);
+  api = factory(core, i18n, themes);
 
   if (typeof module === "object" && module.exports) {
     module.exports = api;
   }
 
   root.TimesheetModel = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (core, i18n, designs) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (core, i18n, themes) {
   "use strict";
 
   var SCHEMA_VERSION = 1;
+  var LEGACY_THEME_FIELD = "design";
   var MAX_ENTRY_COUNT = 50000;
   var MAX_SCHEDULE_COUNT = 2400;
   var ENTRY_FIELD_DEFINITIONS = [
@@ -42,7 +43,7 @@
   function createDefaultPreferences() {
     return {
       language: i18n.DEFAULT_LANGUAGE,
-      design: designs.DEFAULT_DESIGN,
+      theme: themes.DEFAULT_THEME,
       dateFormat: core.DATE_FORMATS.ISO
     };
   }
@@ -113,8 +114,24 @@
 
     return {
       language: source.language,
-      design: source.design,
+      theme: hasOwn(source, "theme") ? source.theme : source[LEGACY_THEME_FIELD],
       dateFormat: source.dateFormat
+    };
+  }
+
+  function toPersistedState(state) {
+    var preferences = {
+      language: state.preferences.language,
+      dateFormat: state.preferences.dateFormat
+    };
+
+    preferences[LEGACY_THEME_FIELD] = state.preferences.theme;
+
+    return {
+      version: state.version,
+      entries: state.entries,
+      schedules: state.schedules,
+      preferences: preferences
     };
   }
 
@@ -142,6 +159,7 @@
     var hasInvalidSchedule = false;
     var entryKeys;
     var scheduleKeys;
+    var theme;
 
     if (!isPlainObject(candidate)) {
       return invalid("The saved data is not an object.", "storage.invalid.object");
@@ -175,14 +193,25 @@
     }
 
     if (hasOwn(candidate, "preferences")) {
-      if (!isPlainObject(candidate.preferences)
-          || !i18n.isSupportedLanguage(candidate.preferences.language)
-          || !designs.isSupportedDesign(candidate.preferences.design)
+      if (!isPlainObject(candidate.preferences)) {
+        return invalid("The saved preferences are invalid.", "storage.invalid.preferences");
+      }
+
+      theme = hasOwn(candidate.preferences, "theme")
+        ? candidate.preferences.theme
+        : candidate.preferences[LEGACY_THEME_FIELD];
+
+      if (!i18n.isSupportedLanguage(candidate.preferences.language)
+          || !themes.isSupportedTheme(theme)
           || !core.isSupportedDateFormat(candidate.preferences.dateFormat)) {
         return invalid("The saved preferences are invalid.", "storage.invalid.preferences");
       }
 
-      normalized.preferences = clonePreferences(candidate.preferences);
+      normalized.preferences = {
+        language: candidate.preferences.language,
+        theme: theme,
+        dateFormat: candidate.preferences.dateFormat
+      };
     }
 
     entryKeys.some(function (dateKey) {
@@ -318,6 +347,7 @@
     createEmptyEntry: createEmptyEntry,
     isEntryEmpty: isEntryEmpty,
     cloneState: cloneState,
+    toPersistedState: toPersistedState,
     validateState: validateState,
     ensureMonthSchedule: ensureMonthSchedule,
     mergeStates: mergeStates

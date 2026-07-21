@@ -3,7 +3,7 @@
 
   var storageApi = window.TimesheetStorage;
   var model = window.TimesheetModel;
-  var designs = window.TimesheetDesigns;
+  var themes = window.TimesheetThemes;
   var output = document.getElementById("results");
   var passed = 0;
   var failures = [];
@@ -84,33 +84,37 @@
   test("round trips validated preferences", function () {
     var memory = new MemoryStorage();
     var state = model.createEmptyState();
+    var persisted;
 
-    equal(designs.getDesigns().map(function (design) {
-      return design.id;
+    equal(themes.getThemes().map(function (theme) {
+      return theme.id;
     }).join(","), "default-gradient,midnight-fog,ember-coast");
     state.preferences.language = "es";
-    state.preferences.design = "midnight-fog";
+    state.preferences.theme = "midnight-fog";
     state.preferences.dateFormat = "day-month-year-dots";
     equal(storageApi.saveState(memory, state).ok, true);
+    persisted = JSON.parse(memory.values[storageApi.STORAGE_KEY]);
+    equal(persisted.preferences.design, "midnight-fog");
+    equal(persisted.preferences.theme, undefined);
     equal(storageApi.loadState(memory).state.preferences.language, "es");
-    equal(storageApi.loadState(memory).state.preferences.design, "midnight-fog");
+    equal(storageApi.loadState(memory).state.preferences.theme, "midnight-fog");
     equal(storageApi.loadState(memory).state.preferences.dateFormat, "day-month-year-dots");
   });
 
   test("defaults legacy state preferences and rejects invalid settings", function () {
     var legacyState = { version: 1, entries: {}, schedules: {} };
     var invalidState = model.createEmptyState();
-    var invalidDesign = model.createEmptyState();
+    var invalidTheme = model.createEmptyState();
 
     invalidState.preferences.dateFormat = "unknown";
-    invalidDesign.preferences.design = "unknown";
+    invalidTheme.preferences.theme = "unknown";
     equal(model.validateState(legacyState).valid, true);
     equal(model.validateState(legacyState).state.preferences.dateFormat, "iso");
     equal(model.validateState(legacyState).state.preferences.language, "en");
-    equal(model.validateState(legacyState).state.preferences.design, "default-gradient");
+    equal(model.validateState(legacyState).state.preferences.theme, "default-gradient");
     equal(model.validateState(invalidState).valid, false);
-    equal(model.validateState(invalidDesign).valid, false);
-    equal(model.validateState(invalidDesign).errorKey, "storage.invalid.preferences");
+    equal(model.validateState(invalidTheme).valid, false);
+    equal(model.validateState(invalidTheme).errorKey, "storage.invalid.preferences");
   });
 
   test("returns stable keys with storage diagnostics", function () {
@@ -176,6 +180,9 @@
     equal(parsed.state.entries["2026-07-16"].absence, true);
     equal(parsed.includesPreferences, true);
     equal(parsed.state.preferences.dateFormat, "iso");
+    equal(parsed.state.preferences.theme, "default-gradient");
+    equal(JSON.parse(serialized).data.preferences.design, "default-gradient");
+    equal(JSON.parse(serialized).data.preferences.theme, undefined);
   });
 
   test("legacy backups preserve local preferences when merged", function () {
@@ -209,11 +216,11 @@
     var imported = model.createEmptyState();
     var merged;
 
-    local.preferences.dateFormat = "month-day-slash";
-    imported.preferences.dateFormat = "day-long-month";
+    local.preferences.theme = "default-gradient";
+    imported.preferences.theme = "midnight-fog";
     merged = model.mergeStates(local, imported, { includePreferences: true });
 
-    equal(merged.preferences.dateFormat, "day-long-month");
+    equal(merged.preferences.theme, "midnight-fog");
   });
 
   test("merge restore keeps unrelated local dates and imports conflicts", function () {

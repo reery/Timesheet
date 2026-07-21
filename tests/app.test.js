@@ -68,6 +68,12 @@
     return Promise.resolve();
   }
 
+  function wait(milliseconds) {
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, milliseconds);
+    });
+  }
+
   function waitForCondition(predicate, message) {
     return new Promise(function (resolve, reject) {
       var attempts = 0;
@@ -387,8 +393,8 @@
         var dialog = documentUnderTest.getElementById("settingsDialog");
         var dateFormatSelect = documentUnderTest.getElementById("dateFormatSelect");
         var languageSelect = documentUnderTest.getElementById("languageSelect");
-        var designSelect = documentUnderTest.getElementById("designSelect");
-        var designPreview = dialog.querySelector(".design-preview");
+        var themeSelect = documentUnderTest.getElementById("themeSelect");
+        var themePreview = dialog.querySelector(".theme-preview");
         var preferencesButton = documentUnderTest.getElementById("settingsButton");
         var repositoryLink = dialog.querySelector(".about-details a");
         var todayTime;
@@ -406,6 +412,7 @@
         equal(documentUnderTest.body.classList.contains("settings-open"), true);
         equal(documentUnderTest.getElementById("menuButton").getAttribute("aria-expanded"), "false");
         equal(documentUnderTest.getElementById("settingsTitle").textContent, "Preferences");
+        equal(documentUnderTest.querySelector('label[for="themeSelect"]').textContent, "Theme");
         equal(dialog.querySelector(".settings-dialog-header .eyebrow"), null);
         equal(documentUnderTest.getElementById("settingsCloseButton").getAttribute("aria-label"), "Close preferences");
         equal(documentUnderTest.querySelector("[data-about-version]").textContent, "Timesheet v0.5");
@@ -416,17 +423,17 @@
         equal(languageSelect.disabled, false);
         equal(languageSelect.options.length, 4);
         equal(languageSelect.value, "en");
-        equal(designSelect.disabled, false);
-        equal(designSelect.options.length, 3);
-        equal(designSelect.value, "default-gradient");
-        equal(designSelect.options[0].textContent, "Morning Fog");
-        equal(designSelect.options[1].textContent, "Midnight Fog");
-        equal(designSelect.options[2].textContent, "Ember Coast");
-        assert(designPreview, "design selector should include a theme preview");
-        assert(parseFloat(frame.contentWindow.getComputedStyle(designSelect).paddingLeft) >= 45,
-          "design selector text should sit beside the theme preview");
-        assert(frame.contentWindow.getComputedStyle(designPreview).backgroundImage !== "none",
-          "design selector should preview the theme in the closed control");
+        equal(themeSelect.disabled, false);
+        equal(themeSelect.options.length, 3);
+        equal(themeSelect.value, "default-gradient");
+        equal(themeSelect.options[0].textContent, "Morning Fog");
+        equal(themeSelect.options[1].textContent, "Midnight Fog");
+        equal(themeSelect.options[2].textContent, "Ember Coast");
+        assert(themePreview, "theme selector should include a preview");
+        assert(parseFloat(frame.contentWindow.getComputedStyle(themeSelect).paddingLeft) >= 45,
+          "theme selector text should sit beside the preview");
+        assert(frame.contentWindow.getComputedStyle(themePreview).backgroundImage !== "none",
+          "theme selector should preview the selected theme");
         equal(dialog.querySelectorAll(".setting-icon").length, 0);
 
         dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -484,13 +491,13 @@
       });
     })
     .then(function () {
-      return run("translates and persists language and design preferences", function () {
+      return run("translates and persists language and theme preferences", function () {
         var documentUnderTest = getDocument();
         var i18n = frame.contentWindow.TimesheetI18n;
         var core = frame.contentWindow.TimesheetCore;
         var languageSelect;
-        var designSelect;
-        var designPreview;
+        var themeSelect;
+        var themePreview;
         var morningFogPreview;
         var emberCoastPreview;
         var selectedMonth = Number(currentMonthKey.slice(5, 7)) - 1;
@@ -499,9 +506,9 @@
         click("menuButton");
         click("settingsButton");
         languageSelect = documentUnderTest.getElementById("languageSelect");
-        designSelect = documentUnderTest.getElementById("designSelect");
-        designPreview = documentUnderTest.querySelector(".design-preview");
-        morningFogPreview = frame.contentWindow.getComputedStyle(designPreview).backgroundImage;
+        themeSelect = documentUnderTest.getElementById("themeSelect");
+        themePreview = documentUnderTest.querySelector(".theme-preview");
+        morningFogPreview = frame.contentWindow.getComputedStyle(themePreview).backgroundImage;
 
         languages.forEach(function (language) {
           var calendar = i18n.getCalendar(language);
@@ -538,8 +545,8 @@
             i18n.translate(language, "storage.saved"));
           equal(documentUnderTest.getElementById("settingsCloseButton").getAttribute("aria-label"),
             i18n.translate(language, "preferences.close"));
-          equal(designSelect.options[0].textContent, "Morning Fog");
-          equal(designSelect.options[1].textContent, "Midnight Fog");
+          equal(themeSelect.options[0].textContent, "Morning Fog");
+          equal(themeSelect.options[1].textContent, "Midnight Fog");
           assert(getInput(todayKey, "start").getAttribute("aria-label").indexOf(startLabel) === 0,
             "time input should use the selected language");
           equal(getAbsenceInput(firstRow.dataset.date).getAttribute("aria-label"),
@@ -557,11 +564,11 @@
 
         languageSelect.value = "de";
         languageSelect.dispatchEvent(new Event("change", { bubbles: true }));
-        designSelect.value = "ember-coast";
-        designSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        themeSelect.value = "ember-coast";
+        themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
 
-        equal(documentUnderTest.documentElement.dataset.design, "ember-coast");
-        equal(designSelect.dataset.preview, "ember-coast");
+        equal(documentUnderTest.documentElement.dataset.theme, "ember-coast");
+        equal(themeSelect.dataset.preview, "ember-coast");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--accent").trim(), "#ff9505");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
@@ -570,17 +577,17 @@
           .getPropertyValue("--accent-strong").trim(), "#016fb9");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--line").trim(), "#d8dbe2");
-        assert(frame.contentWindow.getComputedStyle(designPreview).backgroundImage !== "none",
-          "design selector should preview the selected theme");
-        assert(frame.contentWindow.getComputedStyle(designPreview).backgroundImage !== morningFogPreview,
-          "design selector preview should follow the selected theme");
-        emberCoastPreview = frame.contentWindow.getComputedStyle(designPreview).backgroundImage;
+        assert(frame.contentWindow.getComputedStyle(themePreview).backgroundImage !== "none",
+          "theme selector should preview the selected theme");
+        assert(frame.contentWindow.getComputedStyle(themePreview).backgroundImage !== morningFogPreview,
+          "theme selector preview should follow the selected theme");
+        emberCoastPreview = frame.contentWindow.getComputedStyle(themePreview).backgroundImage;
 
-        designSelect.value = "midnight-fog";
-        designSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        themeSelect.value = "midnight-fog";
+        themeSelect.dispatchEvent(new Event("change", { bubbles: true }));
 
-        equal(documentUnderTest.documentElement.dataset.design, "midnight-fog");
-        equal(designSelect.dataset.preview, "midnight-fog");
+        equal(documentUnderTest.documentElement.dataset.theme, "midnight-fog");
+        equal(themeSelect.dataset.preview, "midnight-fog");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement).colorScheme, "dark");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--page").trim(), "#0d1721");
@@ -590,11 +597,11 @@
           .getPropertyValue("--accent").trim(), "#61b7e5");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--weekend-line").trim(), "#d28b67");
-        assert(frame.contentWindow.getComputedStyle(designPreview).backgroundImage !== morningFogPreview,
+        assert(frame.contentWindow.getComputedStyle(themePreview).backgroundImage !== morningFogPreview,
           "dark theme preview should differ from Morning Fog");
-        assert(frame.contentWindow.getComputedStyle(designPreview).backgroundImage !== emberCoastPreview,
+        assert(frame.contentWindow.getComputedStyle(themePreview).backgroundImage !== emberCoastPreview,
           "dark theme preview should differ from Ember Coast");
-        assert(frame.contentWindow.getComputedStyle(designPreview, "::after").boxShadow !== "none",
+        assert(frame.contentWindow.getComputedStyle(themePreview, "::after").boxShadow !== "none",
           "dark theme preview should include a moon icon");
         click("settingsCloseButton");
 
@@ -602,23 +609,23 @@
           var reloadedDocument = getDocument();
           var reloadedState = frame.contentWindow.TimesheetApp.getState();
           var reloadedLanguage = reloadedDocument.getElementById("languageSelect");
-          var reloadedDesign = reloadedDocument.getElementById("designSelect");
+          var reloadedTheme = reloadedDocument.getElementById("themeSelect");
 
           equal(reloadedState.preferences.language, "de");
-          equal(reloadedState.preferences.design, "midnight-fog");
+          equal(reloadedState.preferences.theme, "midnight-fog");
           equal(reloadedDocument.documentElement.lang, "de");
-          equal(reloadedDocument.documentElement.dataset.design, "midnight-fog");
-          equal(reloadedDesign.dataset.preview, "midnight-fog");
+          equal(reloadedDocument.documentElement.dataset.theme, "midnight-fog");
+          equal(reloadedTheme.dataset.preview, "midnight-fog");
           equal(reloadedDocument.getElementById("settingsTitle").textContent, "Einstellungen");
 
           click("menuButton");
           click("settingsButton");
           reloadedLanguage.value = "en";
           reloadedLanguage.dispatchEvent(new Event("change", { bubbles: true }));
-          reloadedDesign.value = "default-gradient";
-          reloadedDesign.dispatchEvent(new Event("change", { bubbles: true }));
+          reloadedTheme.value = "default-gradient";
+          reloadedTheme.dispatchEvent(new Event("change", { bubbles: true }));
           equal(reloadedDocument.documentElement.lang, "en");
-          equal(reloadedDocument.documentElement.dataset.design, "default-gradient");
+          equal(reloadedDocument.documentElement.dataset.theme, "default-gradient");
           equal(frame.contentWindow.getComputedStyle(reloadedDocument.documentElement).colorScheme, "light");
           click("settingsCloseButton");
         });
@@ -640,6 +647,198 @@
         leaveInput(finish);
         equal(start.value, "09:00");
         equal(finish.value, "16:00");
+      });
+    })
+    .then(function () {
+      return run("coalesces rapid time input persistence", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var storagePrototype = Object.getPrototypeOf(appWindow.localStorage);
+        var originalSetItem = storagePrototype.setItem;
+        var start = getInput(entryDateKey, "start");
+        var row = start.closest("tr");
+        var writeCount = 0;
+        var workflow;
+
+        storagePrototype.setItem = function (key, value) {
+          if (key === TEST_STORAGE_KEY) {
+            writeCount += 1;
+          }
+          return originalSetItem.call(this, key, value);
+        };
+
+        workflow = Promise.resolve().then(function () {
+          ["0", "09", "09:", "09:00"].forEach(function (value) {
+            typeValue(start, value);
+          });
+
+          equal(appWindow.TimesheetApp.getState().entries[entryDateKey].start, "09:00");
+          equal(row.querySelector("[data-day-worked]").textContent, "6:30");
+          equal(documentUnderTest.querySelector("[data-status-text]").textContent, "Saving\u2026");
+          equal(writeCount, 0);
+
+          return wait(350);
+        }).then(function () {
+          equal(writeCount, 1);
+          equal(documentUnderTest.querySelector("[data-status-text]").textContent, "Saved locally");
+        });
+
+        return withCleanup(workflow, function () {
+          storagePrototype.setItem = originalSetItem;
+        });
+      });
+    })
+    .then(function () {
+      return run("flushes normalized time input on blur", function () {
+        var appWindow = frame.contentWindow;
+        var storagePrototype = Object.getPrototypeOf(appWindow.localStorage);
+        var originalSetItem = storagePrototype.setItem;
+        var start = getInput(entryDateKey, "start");
+        var writeCount = 0;
+        var workflow;
+
+        storagePrototype.setItem = function (key, value) {
+          if (key === TEST_STORAGE_KEY) {
+            writeCount += 1;
+          }
+          return originalSetItem.call(this, key, value);
+        };
+
+        workflow = Promise.resolve().then(function () {
+          typeValue(start, "900");
+          equal(writeCount, 0);
+          leaveInput(start);
+
+          equal(start.value, "09:00");
+          equal(writeCount, 1);
+          equal(JSON.parse(appWindow.localStorage.getItem(TEST_STORAGE_KEY))
+            .entries[entryDateKey].start, "09:00");
+
+          return wait(350);
+        }).then(function () {
+          equal(writeCount, 1);
+        });
+
+        return withCleanup(workflow, function () {
+          storagePrototype.setItem = originalSetItem;
+        });
+      });
+    })
+    .then(function () {
+      return run("flushes pending time input on page hide", function () {
+        var appWindow = frame.contentWindow;
+        var storagePrototype = Object.getPrototypeOf(appWindow.localStorage);
+        var originalSetItem = storagePrototype.setItem;
+        var start = getInput(entryDateKey, "start");
+        var writeCount = 0;
+        var workflow;
+
+        storagePrototype.setItem = function (key, value) {
+          if (key === TEST_STORAGE_KEY) {
+            writeCount += 1;
+          }
+          return originalSetItem.call(this, key, value);
+        };
+
+        workflow = Promise.resolve().then(function () {
+          typeValue(start, "09:00");
+          equal(writeCount, 0);
+          appWindow.dispatchEvent(new appWindow.Event("pagehide"));
+
+          equal(writeCount, 1);
+          equal(JSON.parse(appWindow.localStorage.getItem(TEST_STORAGE_KEY))
+            .entries[entryDateKey].start, "09:00");
+
+          return wait(350);
+        }).then(function () {
+          equal(writeCount, 1);
+        });
+
+        return withCleanup(workflow, function () {
+          storagePrototype.setItem = originalSetItem;
+        });
+      });
+    })
+    .then(function () {
+      return run("reports a rejected queued save and retries on a later edit", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var storagePrototype = Object.getPrototypeOf(appWindow.localStorage);
+        var originalSetItem = storagePrototype.setItem;
+        var start = getInput(entryDateKey, "start");
+        var rejectWrite = true;
+        var writeCount = 0;
+        var workflow;
+
+        storagePrototype.setItem = function (key, value) {
+          if (key === TEST_STORAGE_KEY) {
+            writeCount += 1;
+            if (rejectWrite) {
+              throw new Error("Write failed");
+            }
+          }
+          return originalSetItem.call(this, key, value);
+        };
+
+        typeValue(start, "9");
+        workflow = waitForCondition(function () {
+          return documentUnderTest.querySelector("[data-status-text]").textContent
+            === "Browser storage rejected this edit. It was not saved.";
+        }, "queued save failure was not reported").then(function () {
+          equal(writeCount, 1);
+          equal(appWindow.TimesheetApp.getState().entries[entryDateKey].start, "9");
+
+          rejectWrite = false;
+          typeValue(start, "09:00");
+          return waitForCondition(function () {
+            return documentUnderTest.querySelector("[data-status-text]").textContent
+              === "Saved locally";
+          }, "later edit did not retry persistence");
+        }).then(function () {
+          equal(writeCount, 2);
+          equal(JSON.parse(appWindow.localStorage.getItem(TEST_STORAGE_KEY))
+            .entries[entryDateKey].start, "09:00");
+        });
+
+        return withCleanup(workflow, function () {
+          storagePrototype.setItem = originalSetItem;
+        });
+      });
+    })
+    .then(function () {
+      return run("absorbs a pending edit into an immediate absence save", function () {
+        var appWindow = frame.contentWindow;
+        var storagePrototype = Object.getPrototypeOf(appWindow.localStorage);
+        var originalSetItem = storagePrototype.setItem;
+        var start = getInput(entryDateKey, "start");
+        var absence = getAbsenceInput(entryDateKey);
+        var writeCount = 0;
+        var workflow;
+
+        storagePrototype.setItem = function (key, value) {
+          if (key === TEST_STORAGE_KEY) {
+            writeCount += 1;
+          }
+          return originalSetItem.call(this, key, value);
+        };
+
+        workflow = Promise.resolve().then(function () {
+          typeValue(start, "09:00");
+          equal(writeCount, 0);
+          absence.click();
+
+          equal(writeCount, 1);
+          equal(JSON.parse(appWindow.localStorage.getItem(TEST_STORAGE_KEY))
+            .entries[entryDateKey].absence, true);
+          return wait(350);
+        }).then(function () {
+          equal(writeCount, 1);
+          absence.click();
+        });
+
+        return withCleanup(workflow, function () {
+          storagePrototype.setItem = originalSetItem;
+        });
       });
     })
     .then(function () {
@@ -794,6 +993,45 @@
         equal(getDocument().getElementById("weeklyHours").value, "35");
         click("nextMonth");
         equal(getDocument().getElementById("weeklyHours").value, "30");
+      });
+    })
+    .then(function () {
+      return run("coalesces weekly-hours input and flushes it on blur", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var storagePrototype = Object.getPrototypeOf(appWindow.localStorage);
+        var originalSetItem = storagePrototype.setItem;
+        var weeklyHours = documentUnderTest.getElementById("weeklyHours");
+        var writeCount = 0;
+        var workflow;
+
+        storagePrototype.setItem = function (key, value) {
+          if (key === TEST_STORAGE_KEY) {
+            writeCount += 1;
+          }
+          return originalSetItem.call(this, key, value);
+        };
+
+        workflow = Promise.resolve().then(function () {
+          ["3", "31", "31.5"].forEach(setWeeklyHours);
+
+          equal(appWindow.TimesheetApp.getState().schedules[appWindow.TimesheetApp.getViewMonth()], 31.5);
+          equal(documentUnderTest.getElementById("dailyTarget").textContent, "6.3 h each weekday");
+          equal(documentUnderTest.querySelector("[data-status-text]").textContent, "Saving\u2026");
+          equal(writeCount, 0);
+
+          weeklyHours.dispatchEvent(new FocusEvent("blur"));
+          equal(writeCount, 1);
+          equal(documentUnderTest.querySelector("[data-status-text]").textContent, "Saved locally");
+
+          return wait(350);
+        }).then(function () {
+          equal(writeCount, 1);
+        });
+
+        return withCleanup(workflow, function () {
+          storagePrototype.setItem = originalSetItem;
+        });
       });
     })
     .then(function () {
@@ -1183,6 +1421,56 @@
           equal(saved.version, 1);
           equal(saved.entries[importedDate].start, "<x>&");
           equal(saved.entries[legacyDate].start, "8");
+        });
+
+        return withCleanup(workflow, function () {
+          delete documentUnderTest.getElementById("restoreInput").files;
+          appWindow.confirm = originalConfirm;
+        });
+      });
+    })
+    .then(function () {
+      return run("keeps backup and restore statuses after pending edits", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var originalConfirm = appWindow.confirm;
+        var localState = appWindow.TimesheetApp.getState();
+        var emptyRow = Array.prototype.find.call(
+          documentUnderTest.querySelectorAll(".day-row"),
+          function (row) {
+            return !localState.entries[row.dataset.date];
+          }
+        );
+        var start = emptyRow.querySelector('[data-field="start"]');
+        var imported = appWindow.TimesheetApp.getState();
+        var workflow;
+
+        typeValue(start, "8");
+        click("exportButton");
+        equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+          "Backup downloaded");
+
+        workflow = wait(350).then(function () {
+          equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+            "Backup downloaded");
+
+          imported.schedules[currentMonthKey] = 33;
+          typeValue(start, "800");
+          appWindow.confirm = function () {
+            return true;
+          };
+          selectRestoreText(appWindow.TimesheetStorage.serializeBackup(imported), "pending.json");
+          return waitForCondition(function () {
+            return documentUnderTest.querySelector("[data-status-text]").textContent
+              === "Backup restored and saved";
+          }, "pending-edit backup was not restored");
+        }).then(function () {
+          equal(JSON.parse(appWindow.localStorage.getItem(TEST_STORAGE_KEY))
+            .entries[emptyRow.dataset.date].start, "800");
+          return wait(350);
+        }).then(function () {
+          equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+            "Backup restored and saved");
         });
 
         return withCleanup(workflow, function () {

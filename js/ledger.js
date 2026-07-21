@@ -472,7 +472,7 @@
       entry = getOrCreateEntry(row.dataset.date);
       entry[input.dataset.field] = input.value;
       pruneEmptyEntry(row.dataset.date);
-      options.persistState();
+      options.queuePersistState();
       renderComputedValues();
     }
 
@@ -481,20 +481,22 @@
       var parsed;
       var row;
 
-      if (!input || input.value.trim() === "") {
+      if (!input) {
         return;
       }
 
-      parsed = core.parseTime(input.value);
-      if (!parsed.valid || parsed.normalized === input.value) {
-        return;
+      if (input.value.trim() !== "") {
+        parsed = core.parseTime(input.value);
+        if (parsed.valid && parsed.normalized !== input.value) {
+          row = input.closest(".day-row");
+          input.value = parsed.normalized;
+          getOrCreateEntry(row.dataset.date)[input.dataset.field] = parsed.normalized;
+          options.queuePersistState();
+          renderComputedValues();
+        }
       }
 
-      row = input.closest(".day-row");
-      input.value = parsed.normalized;
-      getOrCreateEntry(row.dataset.date)[input.dataset.field] = parsed.normalized;
-      options.persistState();
-      renderComputedValues();
+      options.flushPendingState();
     }
 
     function onAbsenceChange(event) {
@@ -526,7 +528,7 @@
       }
 
       options.getState().schedules[monthKey] = value;
-      options.persistState();
+      options.queuePersistState();
       renderComputedValues();
     }
 
@@ -539,6 +541,8 @@
         elements.weeklyHours.setAttribute("aria-invalid", "false");
         elements.scheduleMessage.textContent = "";
       }
+
+      options.flushPendingState();
     }
 
     function onPeriodChange() {

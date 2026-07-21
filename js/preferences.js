@@ -3,7 +3,7 @@
 
   var core = root.TimesheetCore;
   var i18n = root.TimesheetI18n;
-  var designs = root.TimesheetDesigns;
+  var themes = root.TimesheetThemes;
   var api;
 
   if (!core && typeof require === "function") {
@@ -12,18 +12,18 @@
   if (!i18n && typeof require === "function") {
     i18n = require("./i18n.js");
   }
-  if (!designs && typeof require === "function") {
-    designs = require("./designs.js");
+  if (!themes && typeof require === "function") {
+    themes = require("./themes.js");
   }
 
-  api = factory(root, core, i18n, designs);
+  api = factory(root, core, i18n, themes);
 
   if (typeof module === "object" && module.exports) {
     module.exports = api;
   }
 
   root.TimesheetPreferences = api;
-})(typeof globalThis !== "undefined" ? globalThis : this, function (root, core, i18n, designs) {
+})(typeof globalThis !== "undefined" ? globalThis : this, function (root, core, i18n, themes) {
   "use strict";
 
   function create(options) {
@@ -31,7 +31,7 @@
 
     function initialize() {
       populateLanguageSelect();
-      populateDesignSelect();
+      populateThemeSelect();
       refresh();
     }
 
@@ -41,7 +41,7 @@
       elements.dialog.addEventListener("close", onDialogClose);
       elements.dateFormatSelect.addEventListener("change", onDateFormatChange);
       elements.languageSelect.addEventListener("change", onLanguageChange);
-      elements.designSelect.addEventListener("change", onDesignChange);
+      elements.themeSelect.addEventListener("change", onThemeChange);
     }
 
     function populateLanguageSelect() {
@@ -54,18 +54,18 @@
       });
     }
 
-    function populateDesignSelect() {
-      elements.designSelect.innerHTML = "";
-      designs.getDesigns().forEach(function (design) {
+    function populateThemeSelect() {
+      elements.themeSelect.innerHTML = "";
+      themes.getThemes().forEach(function (theme) {
         var option = root.document.createElement("option");
-        option.value = design.id;
-        option.dataset.labelKey = design.labelKey;
-        elements.designSelect.appendChild(option);
+        option.value = theme.id;
+        option.dataset.labelKey = theme.labelKey;
+        elements.themeSelect.appendChild(option);
       });
     }
 
     function refresh() {
-      Array.prototype.forEach.call(elements.designSelect.options, function (option) {
+      Array.prototype.forEach.call(elements.themeSelect.options, function (option) {
         option.textContent = options.translate(option.dataset.labelKey);
       });
       sync();
@@ -76,8 +76,8 @@
 
       elements.dateFormatSelect.value = preferences.dateFormat;
       elements.languageSelect.value = preferences.language;
-      elements.designSelect.value = preferences.design;
-      elements.designSelect.dataset.preview = preferences.design;
+      elements.themeSelect.value = preferences.theme;
+      elements.themeSelect.dataset.preview = preferences.theme;
     }
 
     function open() {
@@ -126,15 +126,15 @@
       options.onLanguageChange(value);
     }
 
-    function onDesignChange() {
-      var value = elements.designSelect.value;
+    function onThemeChange() {
+      var value = elements.themeSelect.value;
 
-      if (!designs.isSupportedDesign(value)) {
+      if (!themes.isSupportedTheme(value)) {
         sync();
         return;
       }
 
-      options.onDesignChange(value);
+      options.onThemeChange(value);
     }
 
     return {

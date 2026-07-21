@@ -50,7 +50,7 @@
   font-synthesis: none;
 }
 
-html[data-design="ember-coast"] {
+html[data-theme="ember-coast"] {
   --page: #f7f8fb;
   --surface: #ffffff;
   --surface-soft: #f2f4f7;
@@ -78,7 +78,7 @@ html[data-design="ember-coast"] {
   --checkbox-mark: #17374d;
 }
 
-html[data-design="midnight-fog"] {
+html[data-theme="midnight-fog"] {
   color-scheme: dark;
   --page: #0d1721;
   --surface: #16232d;
@@ -499,7 +499,7 @@ body.settings-open {
 }
 
 .setting-row > select,
-.setting-row > .design-select-control > select {
+.setting-row > .theme-select-control > select {
   width: 100%;
   height: 44px;
   min-width: 0;
@@ -512,22 +512,22 @@ body.settings-open {
 }
 
 .setting-row > select:hover:not(:disabled),
-.setting-row > .design-select-control > select:hover:not(:disabled) {
+.setting-row > .theme-select-control > select:hover:not(:disabled) {
   border-color: var(--accent);
 }
 
-.setting-row > .design-select-control {
+.setting-row > .theme-select-control {
   position: relative;
   min-width: 0;
 }
 
-.setting-row > .design-select-control > select.design-select {
+.setting-row > .theme-select-control > select.theme-select {
   -webkit-appearance: none;
   appearance: none;
   padding: 0 40px 0 45px;
 }
 
-.design-preview {
+.theme-preview {
   position: absolute;
   top: 50%;
   left: 11px;
@@ -542,11 +542,11 @@ body.settings-open {
   box-shadow: inset 0 0 0 1px var(--preview-inset);
 }
 
-.design-select[data-preview="midnight-fog"] + .design-preview {
+.theme-select[data-preview="midnight-fog"] + .theme-preview {
   background-image: linear-gradient(135deg, #08131d 0, #193448 58%, #70b5d5 100%);
 }
 
-.design-select[data-preview="midnight-fog"] + .design-preview::after {
+.theme-select[data-preview="midnight-fog"] + .theme-preview::after {
   position: absolute;
   top: 3px;
   left: 3px;
@@ -558,11 +558,11 @@ body.settings-open {
   transform: rotate(-14deg);
 }
 
-.design-select[data-preview="ember-coast"] + .design-preview {
+.theme-select[data-preview="ember-coast"] + .theme-preview {
   background-image: linear-gradient(135deg, #ff9505 0, #ff9505 43%, #ec4e20 44%, #ec4e20 68%, #016fb9 69%, #016fb9 100%);
 }
 
-.design-select-control::after {
+.theme-select-control::after {
   position: absolute;
   top: 50%;
   right: 15px;
