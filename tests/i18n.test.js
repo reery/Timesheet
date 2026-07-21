@@ -37,8 +37,12 @@
     equal(i18n.translate("de", "action.preferences"), "Einstellungen");
     equal(i18n.translate("es", "action.preferences"), "Preferencias");
     equal(i18n.translate("fr", "action.preferences"), "Pr\u00e9f\u00e9rences");
-    equal(i18n.translate("fr", "design.midnightFog"), "Midnight Fog");
+    equal(i18n.translate("fr", "theme.midnightFog"), "Midnight Fog");
     equal(i18n.translate("de", "summary.decimalHours", { hours: "96" }), "96 h dezimal");
+    equal(i18n.translate("en", "storage.saving"), "Saving\u2026");
+    equal(i18n.translate("de", "storage.saving"), "Wird gespeichert\u2026");
+    equal(i18n.translate("es", "storage.saving"), "Guardando\u2026");
+    equal(i18n.translate("fr", "storage.saving"), "Enregistrement\u2026");
   });
 
   test("uses localized absence terminology", function () {

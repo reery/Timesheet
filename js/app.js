@@ -2,10 +2,11 @@
   "use strict";
 
   var i18n = root.TimesheetI18n;
-  var designs = root.TimesheetDesigns;
+  var themes = root.TimesheetThemes;
   var model = root.TimesheetModel;
   var storageApi = root.TimesheetStorage;
   var APP_VERSION = "v0.5";
+  var SAVE_DELAY_MS = 250;
   var browserStorage = storageApi.getBrowserStorage();
   var storageKey = getStorageKey();
   var loadResult = storageApi.loadState(browserStorage, storageKey);
@@ -14,6 +15,8 @@
   var storageEditMessageKey = loadResult.editMessageKey || "storage.unreadableEdit";
   var elements = {};
   var currentStatus = null;
+  var pendingSaveTimer = null;
+  var hasPendingSave = false;
   var menuController;
   var preferencesController;
   var ledgerController;
@@ -56,7 +59,7 @@
     [
       "saveStatus", "restoreInput", "settingsButton",
       "menuButton", "headerActions", "settingsDialog", "settingsCloseButton",
-      "dateFormatSelect", "languageSelect", "designSelect",
+      "dateFormatSelect", "languageSelect", "themeSelect",
       "previousMonth", "monthSelect", "yearInput", "nextMonth", "todayButton",
       "weeklyHours", "scheduleMessage", "dailyTarget",
       "monthWorked", "monthWorkedDecimal",
@@ -90,7 +93,7 @@
         closeButton: elements.settingsCloseButton,
         dateFormatSelect: elements.dateFormatSelect,
         languageSelect: elements.languageSelect,
-        designSelect: elements.designSelect
+        themeSelect: elements.themeSelect
       },
       getPreferences: function () {
         return state.preferences;
@@ -101,7 +104,7 @@
       },
       onDateFormatChange: onDateFormatChange,
       onLanguageChange: onLanguageChange,
-      onDesignChange: onDesignChange
+      onThemeChange: onThemeChange
     });
     preferencesController.initialize();
   }
@@ -134,6 +137,8 @@
         return storageWritable;
       },
       persistState: persistState,
+      queuePersistState: queuePersistState,
+      flushPendingState: flushPendingState,
       setStatus: setStatus,
       translate: translate
     });
@@ -196,18 +201,18 @@
     }
   }
 
-  function applyDesign() {
-    var design = designs.isSupportedDesign(state.preferences.design)
-      ? state.preferences.design
-      : designs.DEFAULT_DESIGN;
+  function applyTheme() {
+    var theme = themes.isSupportedTheme(state.preferences.theme)
+      ? state.preferences.theme
+      : themes.DEFAULT_THEME;
 
-    document.documentElement.dataset.design = design;
-    elements.designSelect.dataset.preview = design;
+    document.documentElement.dataset.theme = theme;
+    elements.themeSelect.dataset.preview = theme;
   }
 
   function applyPreferences() {
     applyLanguage();
-    applyDesign();
+    applyTheme();
     preferencesController.sync();
   }
 
@@ -216,6 +221,14 @@
     preferencesController.bind();
     ledgerController.bind();
     elements.restoreInput.addEventListener("change", restoreBackup);
+    root.addEventListener("pagehide", flushPendingState);
+    document.addEventListener("visibilitychange", flushWhenHidden);
+  }
+
+  function flushWhenHidden() {
+    if (document.hidden) {
+      flushPendingState();
+    }
   }
 
   function onDateFormatChange(value) {
@@ -231,9 +244,9 @@
     ledgerController.render();
   }
 
-  function onDesignChange(value) {
-    state.preferences.design = value;
-    applyDesign();
+  function onThemeChange(value) {
+    state.preferences.theme = value;
+    applyTheme();
     preferencesController.sync();
     persistState();
   }
@@ -269,8 +282,45 @@
     );
   }
 
+  function clearPendingSave() {
+    if (pendingSaveTimer !== null) {
+      root.clearTimeout(pendingSaveTimer);
+      pendingSaveTimer = null;
+    }
+
+    hasPendingSave = false;
+  }
+
+  function queuePersistState() {
+    if (!storageWritable) {
+      setStatus(storageEditMessageKey, "error");
+      return false;
+    }
+
+    if (!hasPendingSave) {
+      setStatus("storage.saving", "neutral");
+    }
+
+    hasPendingSave = true;
+    if (pendingSaveTimer !== null) {
+      root.clearTimeout(pendingSaveTimer);
+    }
+    pendingSaveTimer = root.setTimeout(flushPendingState, SAVE_DELAY_MS);
+    return true;
+  }
+
+  function flushPendingState() {
+    if (!hasPendingSave) {
+      return true;
+    }
+
+    return persistState();
+  }
+
   function persistState() {
     var result;
+
+    clearPendingSave();
 
     if (!storageWritable) {
       setStatus(storageEditMessageKey, "error");
@@ -287,6 +337,8 @@
     var blob;
     var url;
     var link;
+
+    flushPendingState();
 
     try {
       json = storageApi.serializeBackup(state);
@@ -348,7 +400,14 @@
     if (!root.confirm(translate(
       parsed.includesPreferences ? "restore.confirmPreferences" : "restore.confirm"
     ))) {
+      if (!flushPendingState()) {
+        return;
+      }
       setStatus("restore.cancelled", "neutral");
+      return;
+    }
+
+    if (!flushPendingState()) {
       return;
     }
 

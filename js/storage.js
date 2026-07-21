@@ -144,7 +144,7 @@
     }
 
     try {
-      storage.setItem(key, JSON.stringify(validation.state));
+      storage.setItem(key, JSON.stringify(model.toPersistedState(validation.state)));
       return { ok: true, message: "Saved locally", messageKey: "storage.saved", messageParams: {} };
     } catch (error) {
       return {
@@ -168,7 +168,7 @@
       format: BACKUP_FORMAT,
       version: model.SCHEMA_VERSION,
       exportedAt: timestamp.toISOString(),
-      data: validation.state
+      data: model.toPersistedState(validation.state)
     }, null, 2);
   }
 

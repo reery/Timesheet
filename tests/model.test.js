@@ -44,7 +44,7 @@
 
     equal(first.version, model.SCHEMA_VERSION);
     equal(first.preferences.language, "en");
-    equal(first.preferences.design, "default-gradient");
+    equal(first.preferences.theme, "default-gradient");
     equal(first.preferences.dateFormat, "iso");
     first.entries.test = {};
     equal(second.entries.test, undefined);
@@ -61,8 +61,24 @@
     equal(validation.valid, true);
     equal(validation.state.entries["2026-07-17"].absence, false);
     equal(validation.state.preferences.language, "en");
-    equal(validation.state.preferences.design, "default-gradient");
+    equal(validation.state.preferences.theme, "default-gradient");
     equal(validation.state.preferences.dateFormat, "iso");
+  });
+
+  test("normalizes the legacy design preference to theme", function () {
+    var legacy = model.createEmptyState();
+    var validation;
+
+    legacy.preferences = {
+      language: "en",
+      design: "midnight-fog",
+      dateFormat: "iso"
+    };
+    validation = model.validateState(legacy);
+
+    equal(validation.valid, true);
+    equal(validation.state.preferences.theme, "midnight-fog");
+    equal(validation.state.preferences.design, undefined);
   });
 
   test("rejects invalid entries preferences schedules and versions", function () {
@@ -73,7 +89,7 @@
 
     invalidEntry.entries["2026-07-16"] = entry("900", "1600");
     invalidEntry.entries["2026-07-16"].absence = "true";
-    invalidPreferences.preferences.design = "unknown";
+    invalidPreferences.preferences.theme = "unknown";
     invalidSchedule.schedules.invalid = 32;
     invalidVersion.version = 2;
 
