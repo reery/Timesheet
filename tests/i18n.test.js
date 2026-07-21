@@ -23,6 +23,9 @@
 
   test("exposes every supported language", function () {
     equal(i18n.SUPPORTED_LANGUAGES.join(","), "en,de,es,fr");
+    equal(i18n.getLanguages().map(function (language) {
+      return language.id + ":" + language.name;
+    }).join(","), "en:English,de:Deutsch,es:Espa\u00f1ol,fr:Fran\u00e7ais");
     equal(i18n.getLanguageName("en"), "English");
     equal(i18n.getLanguageName("de"), "Deutsch");
     equal(i18n.getLanguageName("es"), "Espa\u00f1ol");
@@ -35,6 +38,7 @@
     equal(i18n.translate("es", "action.preferences"), "Preferencias");
     equal(i18n.translate("fr", "action.preferences"), "Pr\u00e9f\u00e9rences");
     equal(i18n.translate("fr", "design.midnightFog"), "Midnight Fog");
+    equal(i18n.translate("de", "summary.decimalHours", { hours: "96" }), "96 h dezimal");
   });
 
   test("uses localized absence terminology", function () {
@@ -54,6 +58,10 @@
 
   test("interpolates values without changing missing placeholders", function () {
     equal(i18n.translate("es", "week.label", { week: 31 }), "Semana 31");
+    equal(i18n.translate("en", "validation.year", { min: 1900, max: 9999 }),
+      "Choose a year from 1900 to 9999.");
+    equal(i18n.translate("de", "backup.tooLarge", { limit: 10 }),
+      "Eine Sicherung mit h\u00f6chstens 10 MiB ausw\u00e4hlen.");
     equal(i18n.translate("en", "week.label"), "Week {week}");
   });
 

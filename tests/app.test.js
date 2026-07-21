@@ -22,6 +22,10 @@
     }
   }
 
+  function entry(start, finish) {
+    return { start: start, finish: finish, breakStart: "", breakFinish: "" };
+  }
+
   function waitForFrameLoad() {
     return new Promise(function (resolve) {
       frame.addEventListener("load", function handleLoad() {
@@ -62,6 +66,27 @@
     frame.getBoundingClientRect();
     frame.contentDocument.documentElement.getBoundingClientRect();
     return Promise.resolve();
+  }
+
+  function waitForCondition(predicate, message) {
+    return new Promise(function (resolve, reject) {
+      var attempts = 0;
+      var timer = window.setInterval(function () {
+        attempts += 1;
+        try {
+          if (predicate()) {
+            window.clearInterval(timer);
+            resolve();
+          } else if (attempts > 100) {
+            window.clearInterval(timer);
+            reject(new Error(message || "condition was not met"));
+          }
+        } catch (error) {
+          window.clearInterval(timer);
+          reject(error);
+        }
+      }, 20);
+    });
   }
 
   function run(name, callback) {
@@ -107,10 +132,97 @@
     select.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  function selectPeriod(year, monthIndex) {
+    var documentUnderTest = getDocument();
+    var monthSelect = documentUnderTest.getElementById("monthSelect");
+    var yearInput = documentUnderTest.getElementById("yearInput");
+
+    monthSelect.value = String(monthIndex);
+    yearInput.value = String(year);
+    yearInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
   function setWeeklyHours(value) {
     var input = getDocument().getElementById("weeklyHours");
     input.value = String(value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function selectRestoreText(text, name) {
+    var appWindow = frame.contentWindow;
+    var input = getDocument().getElementById("restoreInput");
+    var file = new appWindow.File([text], name || "timesheet.json", {
+      type: "application/json"
+    });
+
+    Object.defineProperty(input, "files", {
+      configurable: true,
+      value: [file]
+    });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function withCleanup(promise, cleanup) {
+    return promise.then(function (value) {
+      cleanup();
+      return value;
+    }, function (error) {
+      cleanup();
+      throw error;
+    });
+  }
+
+  function createFixedDateConstructor(RealDate, fixedDate) {
+    function FixedDate() {
+      var argumentsList = Array.prototype.slice.call(arguments);
+
+      if (argumentsList.length === 0) {
+        return new RealDate(fixedDate.getTime());
+      }
+
+      return new (Function.prototype.bind.apply(RealDate, [null].concat(argumentsList)))();
+    }
+
+    FixedDate.prototype = RealDate.prototype;
+    FixedDate.now = function () {
+      return fixedDate.getTime();
+    };
+    FixedDate.parse = RealDate.parse;
+    FixedDate.UTC = RealDate.UTC;
+
+    return FixedDate;
+  }
+
+  function fillStorageToCapacity(storage) {
+    var prefix = "__timesheet-quota-test__";
+    var keys = [];
+    var size = 256 * 1024;
+    var index = 0;
+    var key;
+    var value;
+
+    while (size >= 128) {
+      value = "x".repeat(size);
+      while (true) {
+        key = prefix + index;
+        try {
+          storage.setItem(key, value);
+          keys.push(key);
+          index += 1;
+        } catch (error) {
+          break;
+        }
+      }
+      size = Math.floor(size / 2);
+    }
+
+    return keys;
+  }
+
+  function removeStorageKeys(storage, keys) {
+    keys.forEach(function (key) {
+      storage.removeItem(key);
+    });
   }
 
   function finish() {
@@ -136,6 +248,7 @@
     .then(function () {
       return run("opens on the current month with today selected", function () {
         var documentUnderTest = getDocument();
+        var fieldDefinitions = frame.contentWindow.TimesheetModel.getEntryFields();
         var tableFrame = documentUnderTest.querySelector(".table-frame");
         var todayRow = documentUnderTest.querySelector('[data-date="' + todayKey + '"]');
         var frameBounds;
@@ -149,7 +262,24 @@
         equal(documentUnderTest.querySelectorAll(".day-row").length, expectedWeeks.length * 7);
         equal(documentUnderTest.querySelectorAll(".absence-input").length, expectedWeeks.length * 7);
         equal(documentUnderTest.querySelectorAll(".week-summary").length, expectedWeeks.length);
-        equal(documentUnderTest.querySelector(".week-summary th").colSpan, 6);
+        equal(documentUnderTest.querySelector(".week-summary th").colSpan,
+          fieldDefinitions.length + 2);
+        equal(Array.prototype.map.call(
+          documentUnderTest.querySelectorAll("[data-entry-field-heading]"),
+          function (heading) {
+            return heading.dataset.entryFieldHeading;
+          }
+        ).join(","), fieldDefinitions.map(function (field) {
+          return field.key;
+        }).join(","));
+        equal(Array.prototype.map.call(
+          documentUnderTest.querySelectorAll(".day-row:first-of-type .time-input"),
+          function (input) {
+            return input.dataset.field;
+          }
+        ).join(","), fieldDefinitions.map(function (field) {
+          return field.key;
+        }).join(","));
         equal(documentUnderTest.querySelector(".absence-heading").textContent, "Absence");
         assert(todayRow.classList.contains("is-today"));
         frameBounds = tableFrame.getBoundingClientRect();
@@ -162,14 +292,58 @@
       return run("contains responsive controls and isolates ledger overflow", function () {
         var documentUnderTest = getDocument();
         var viewportWidth = frame.contentWindow.innerWidth;
+        var brand = documentUnderTest.querySelector(".brand-line");
+        var periodBar = documentUnderTest.querySelector(".period-bar");
+        var periodNavigation = documentUnderTest.querySelector(".period-navigation");
+        var periodPicker = documentUnderTest.querySelector(".period-picker");
+        var summaryStrip = documentUnderTest.querySelector(".summary-strip");
+        var scheduleControl = documentUnderTest.querySelector(".schedule-control");
+        var numberField = scheduleControl.querySelector(".number-field");
+        var dailyTarget = documentUnderTest.getElementById("dailyTarget");
+        var ledgerSection = documentUnderTest.querySelector(".ledger-section");
         var tableFrame = documentUnderTest.querySelector(".table-frame");
         var timeInput = documentUnderTest.querySelector(".time-input");
         var tableHeading = documentUnderTest.querySelector("thead th");
         var headerActions = documentUnderTest.getElementById("headerActions");
+        var periodBounds = periodBar.getBoundingClientRect();
+        var ledgerBounds = ledgerSection.getBoundingClientRect();
         var controls;
 
         equal(viewportWidth, 390);
         equal(documentUnderTest.documentElement.scrollWidth, viewportWidth);
+        equal(summaryStrip.parentElement, periodBar);
+        equal(periodNavigation.nextElementSibling, summaryStrip);
+        equal(summaryStrip.nextElementSibling, scheduleControl);
+        equal(summaryStrip.querySelectorAll(".summary-metric").length, 3);
+        summaryStrip.querySelectorAll(".summary-metric").forEach(function (metric) {
+          equal(metric.children.length, 3);
+          equal(metric.children[0].tagName, "DT");
+          equal(metric.children[1].tagName, "DD");
+          equal(metric.children[1].classList.contains("metric-value"), true);
+          equal(metric.children[2].tagName, "DD");
+          equal(metric.children[2].classList.contains("metric-detail"), true);
+        });
+        equal(documentUnderTest.getElementById("monthKeyLabel"), null);
+        equal(documentUnderTest.getElementById("monthHeading"), null);
+        equal(documentUnderTest.getElementById("summaryCutoff"), null);
+        equal(documentUnderTest.getElementById("monthPlanned"), null);
+        equal(
+          Math.round(periodNavigation.getBoundingClientRect().left),
+          Math.round(periodBounds.left)
+        );
+        assert(periodPicker.getBoundingClientRect().width < periodBounds.width,
+          "period picker should not stretch to the toolbar width");
+        assert(dailyTarget.getBoundingClientRect().left >= numberField.getBoundingClientRect().right,
+          "daily target should sit to the right of the hours picker");
+        assert(brand.getBoundingClientRect().top <= 20, "brand should stay near the viewport top");
+        assert(ledgerBounds.top >= periodBounds.bottom, "ledger should not overlap the toolbar");
+        assert(ledgerBounds.top - periodBounds.bottom <= 20,
+          "toolbar-to-ledger gap should stay compact");
+        summaryStrip.querySelectorAll(".summary-metric").forEach(function (metric) {
+          var bounds = metric.getBoundingClientRect();
+          assert(bounds.left >= 0, "summary metric extends left of viewport");
+          assert(bounds.right <= viewportWidth, "summary metric extends right of viewport");
+        });
         equal(frame.contentWindow.getComputedStyle(headerActions).display, "none");
         click("menuButton");
         equal(documentUnderTest.getElementById("menuButton").getAttribute("aria-expanded"), "true");
@@ -223,7 +397,7 @@
 
         assert(documentUnderTest.querySelector("[data-brand-icon]"), "brand should include a timetable icon");
         equal(documentUnderTest.querySelector(".brand-line h1").textContent, "Timesheet");
-        equal(documentUnderTest.querySelector("[data-app-version]").textContent, "v0.4");
+        equal(documentUnderTest.querySelector("[data-app-version]").textContent, "v0.5");
         equal(preferencesButton.textContent.trim(), "Preferences");
         equal(documentUnderTest.body.textContent.indexOf("Settings"), -1);
         click("menuButton");
@@ -234,7 +408,7 @@
         equal(documentUnderTest.getElementById("settingsTitle").textContent, "Preferences");
         equal(dialog.querySelector(".settings-dialog-header .eyebrow"), null);
         equal(documentUnderTest.getElementById("settingsCloseButton").getAttribute("aria-label"), "Close preferences");
-        equal(documentUnderTest.querySelector("[data-about-version]").textContent, "Timesheet v0.4");
+        equal(documentUnderTest.querySelector("[data-about-version]").textContent, "Timesheet v0.5");
         equal(dialog.querySelector(".about-details p:first-child").textContent, "Local work time tracker.");
         equal(dialog.querySelector(".about-details p:nth-child(2)").textContent, "MIT licence.");
         equal(repositoryLink.textContent, "https://github.com/reery/Timesheet");
@@ -290,11 +464,6 @@
           "en"
         );
         equal(documentUnderTest.querySelector(".week-range").textContent, firstWeekRange);
-        equal(
-          documentUnderTest.getElementById("summaryCutoff").textContent,
-          "Through " + core.formatDate(todayKey, core.DATE_FORMATS.DAY_MONTH_YEAR_DOTS, "en")
-        );
-
         click("settingsCloseButton");
         equal(dialog.open, false);
         equal(documentUnderTest.activeElement, documentUnderTest.getElementById("menuButton"));
@@ -347,6 +516,8 @@
 
           equal(frame.contentWindow.TimesheetApp.getState().preferences.language, language);
           equal(documentUnderTest.documentElement.lang, language);
+          equal(documentUnderTest.querySelector(".brand-line h1").textContent,
+            i18n.translate(language, "app.name"));
           equal(documentUnderTest.getElementById("settingsTitle").textContent,
             i18n.translate(language, "preferences.title"));
           equal(documentUnderTest.getElementById("ledgerHeading").textContent,
@@ -584,6 +755,30 @@
       });
     })
     .then(function () {
+      return run("removes entries after their last value is cleared", function () {
+        var state = frame.contentWindow.TimesheetApp.getState();
+        var emptyDateKey = Array.prototype.find.call(
+          getDocument().querySelectorAll(".day-row"),
+          function (row) {
+            return row.dataset.date !== entryDateKey && !state.entries[row.dataset.date];
+          }
+        ).dataset.date;
+        var start = getInput(emptyDateKey, "start");
+
+        typeValue(start, "9");
+        assert(frame.contentWindow.TimesheetApp.getState().entries[emptyDateKey],
+          "nonempty input should create an entry");
+
+        typeValue(start, "");
+        equal(frame.contentWindow.TimesheetApp.getState().entries[emptyDateKey], undefined);
+
+        return reloadFrame().then(function () {
+          equal(frame.contentWindow.TimesheetApp.getState().entries[emptyDateKey], undefined);
+          equal(getInput(emptyDateKey, "start").value, "");
+        });
+      });
+    })
+    .then(function () {
       return run("snapshots and independently edits monthly schedules", function () {
         var nextMonthKey = frame.contentWindow.TimesheetCore.shiftMonthKey(currentMonthKey, 1);
 
@@ -662,7 +857,6 @@
         equal(weekRow.querySelector("[data-week-balance]").textContent,
           core.formatSignedDecimalHours(weekSummary.balanceMinutes));
         equal(weekRow.querySelector("[data-week-balance]").dataset.balance, "positive");
-        equal(getDocument().getElementById("summaryCutoff").textContent, "Future entries");
         equal(getDocument().getElementById("monthWorked").textContent,
           core.formatDuration(monthSummary.workedMinutes));
         equal(getDocument().getElementById("monthBalance").textContent,
@@ -678,6 +872,61 @@
         assert(frame.contentWindow.TimesheetApp.getViewMonth() !== currentMonthKey);
         click("todayButton");
         equal(frame.contentWindow.TimesheetApp.getViewMonth(), currentMonthKey);
+      });
+    })
+    .then(function () {
+      return run("bounds navigation at the supported period limits", function () {
+        var documentUnderTest = getDocument();
+        var previous = documentUnderTest.getElementById("previousMonth");
+        var next = documentUnderTest.getElementById("nextMonth");
+        var rows;
+
+        selectPeriod(1900, 0);
+        equal(frame.contentWindow.TimesheetApp.getViewMonth(), "1900-01");
+        equal(documentUnderTest.getElementById("yearInput").min, "1900");
+        equal(documentUnderTest.getElementById("yearInput").max, "9999");
+        equal(previous.disabled, true);
+        equal(next.disabled, false);
+        previous.click();
+        equal(frame.contentWindow.TimesheetApp.getViewMonth(), "1900-01");
+
+        selectPeriod(9999, 11);
+        rows = documentUnderTest.querySelectorAll(".day-row");
+        equal(frame.contentWindow.TimesheetApp.getViewMonth(), "9999-12");
+        equal(previous.disabled, false);
+        equal(next.disabled, true);
+        equal(rows[rows.length - 1].dataset.date, "9999-12-31");
+        next.click();
+        equal(frame.contentWindow.TimesheetApp.getViewMonth(), "9999-12");
+
+        click("todayButton");
+        equal(frame.contentWindow.TimesheetApp.getViewMonth(), currentMonthKey);
+      });
+    })
+    .then(function () {
+      return run("refreshes today when the window regains focus", function () {
+        var appWindow = frame.contentWindow;
+        var RealDate = appWindow.Date;
+        var realToday = new RealDate(todayKey + "T12:00:00");
+        var simulatedToday = new RealDate(
+          realToday.getFullYear(),
+          realToday.getMonth() + 1,
+          2,
+          12
+        );
+        var simulatedTodayKey = appWindow.TimesheetCore.toIsoDate(simulatedToday);
+
+        appWindow.Date = createFixedDateConstructor(RealDate, simulatedToday);
+        appWindow.dispatchEvent(new appWindow.Event("focus"));
+
+        equal(appWindow.TimesheetApp.getViewMonth(), simulatedTodayKey.slice(0, 7));
+        equal(getDocument().querySelector(".day-row.is-today").dataset.date, simulatedTodayKey);
+
+        appWindow.Date = RealDate;
+        appWindow.dispatchEvent(new appWindow.Event("focus"));
+
+        equal(appWindow.TimesheetApp.getViewMonth(), currentMonthKey);
+        equal(getDocument().querySelector(".day-row.is-today").dataset.date, todayKey);
       });
     })
     .then(function () {
@@ -745,6 +994,8 @@
         var documentUnderTest = getDocument();
         var tableFrame = documentUnderTest.querySelector(".table-frame");
         var summaryMetrics = documentUnderTest.querySelectorAll(".summary-metric");
+        var firstMetricBounds;
+        var secondMetricBounds;
         var controls;
 
         frame.style.width = "320px";
@@ -756,10 +1007,15 @@
         equal(frame.contentWindow.innerWidth, 320);
         equal(documentUnderTest.documentElement.scrollWidth, 320);
         assert(tableFrame.scrollWidth > tableFrame.clientWidth, "ledger should remain independently scrollable");
-        assert(
-          summaryMetrics[1].getBoundingClientRect().top >= summaryMetrics[0].getBoundingClientRect().bottom,
-          "summary metrics should stack at the minimum width"
-        );
+        firstMetricBounds = summaryMetrics[0].getBoundingClientRect();
+        secondMetricBounds = summaryMetrics[1].getBoundingClientRect();
+        assert(Math.abs(secondMetricBounds.top - firstMetricBounds.top) < 1,
+          "summary metrics should share one compact row at the minimum width");
+        summaryMetrics.forEach(function (metric) {
+          var bounds = metric.getBoundingClientRect();
+          assert(bounds.left >= 0, "summary metric extends left of minimum viewport");
+          assert(bounds.right <= 320, "summary metric extends right of minimum viewport");
+        });
         controls.forEach(function (control) {
           var bounds = control.getBoundingClientRect();
           assert(bounds.left >= 0, "control extends left of minimum viewport");
@@ -793,6 +1049,13 @@
             "preference label should sit above its select at the minimum width");
           equal(frame.contentWindow.getComputedStyle(label).whiteSpace, "nowrap");
         });
+        languageSelect.value = "de";
+        languageSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        var menuBounds = documentUnderTest.getElementById("menuButton").getBoundingClientRect();
+        equal(documentUnderTest.documentElement.lang, "de");
+        equal(documentUnderTest.documentElement.scrollWidth, 320);
+        assert(menuBounds.right <= 320, "translated mobile header extends beyond viewport");
+        assert(menuBounds.width >= 44, "mobile menu should retain a 44px touch target");
         languageSelect.value = "en";
         languageSelect.dispatchEvent(new Event("change", { bubbles: true }));
         click("settingsCloseButton");
@@ -806,21 +1069,301 @@
           var documentUnderTest = getDocument();
           var header = documentUnderTest.querySelector(".app-header");
           var headerActions = documentUnderTest.getElementById("headerActions");
-          var brandBounds = documentUnderTest.querySelector(".brand-line").getBoundingClientRect();
-          var actionBounds = headerActions.getBoundingClientRect();
+          var languageSelect = documentUnderTest.getElementById("languageSelect");
+          var dateCell = documentUnderTest.querySelector(".date-cell");
+          var dateBounds = dateCell.querySelector("time").getBoundingClientRect();
+          var weekdayBounds = dateCell.querySelector(".weekday").getBoundingClientRect();
+          var numberField = documentUnderTest.querySelector(".schedule-control .number-field");
+          var dailyTarget = documentUnderTest.getElementById("dailyTarget");
+          var brandBounds;
+          var actionBounds;
+
+          languageSelect.value = "de";
+          languageSelect.dispatchEvent(new Event("change", { bubbles: true }));
+          brandBounds = documentUnderTest.querySelector(".brand-line").getBoundingClientRect();
+          actionBounds = headerActions.getBoundingClientRect();
 
           equal(frame.contentWindow.innerWidth, 841);
           equal(documentUnderTest.documentElement.scrollWidth, 841);
+          equal(documentUnderTest.documentElement.lang, "de");
           equal(frame.contentWindow.getComputedStyle(documentUnderTest.getElementById("menuButton")).display, "none");
           equal(frame.contentWindow.getComputedStyle(headerActions).display, "flex");
           equal(frame.contentWindow.getComputedStyle(header).position, "relative");
           equal(headerActions.dataset.open, "false");
           equal(documentUnderTest.getElementById("restoreButton").nextElementSibling.id, "settingsButton");
-          assert(documentUnderTest.querySelector(".date-cell").getBoundingClientRect().width > 220,
-            "desktop date column should retain its full width");
+          assert(dateCell.getBoundingClientRect().width < 200,
+            "date column should tighten before the mobile breakpoint");
+          equal(Math.round(weekdayBounds.left - dateBounds.right), 8);
+          assert(dailyTarget.getBoundingClientRect().left >= numberField.getBoundingClientRect().right,
+            "stacked daily target should sit to the right of the hours picker");
           assert(actionBounds.right <= header.getBoundingClientRect().right, "desktop actions should fit the header");
           assert(brandBounds.top < actionBounds.bottom && brandBounds.bottom > actionBounds.top,
             "brand and desktop actions should share one row");
+          languageSelect.value = "en";
+          languageSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      });
+    })
+    .then(function () {
+      return run("restores current and legacy backups through the file input", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var model = appWindow.TimesheetModel;
+        var storageApi = appWindow.TimesheetStorage;
+        var originalConfirm = appWindow.confirm;
+        var localState = appWindow.TimesheetApp.getState();
+        var availableDates = Array.prototype.filter.call(
+          documentUnderTest.querySelectorAll(".day-row"),
+          function (row) {
+            return row.dataset.date !== entryDateKey
+              && appWindow.TimesheetCore.getMonthKey(row.dataset.date) === currentMonthKey
+              && !localState.entries[row.dataset.date];
+          }
+        ).map(function (row) {
+          return row.dataset.date;
+        });
+        var importedDate = availableDates[0];
+        var legacyDate = availableDates[1];
+        var currentImport = model.createEmptyState();
+        var legacyData = {
+          version: model.SCHEMA_VERSION,
+          entries: {},
+          schedules: {}
+        };
+        var preservedStart = localState.entries[entryDateKey].start;
+        var preservedDateFormat = localState.preferences.dateFormat;
+        var confirmations = 0;
+        var currentBackup;
+        var legacyBackup;
+        var workflow;
+
+        currentImport.preferences = localState.preferences;
+        currentImport.entries[importedDate] = model.createEmptyEntry();
+        currentImport.entries[importedDate].start = "<x>&";
+        currentBackup = storageApi.serializeBackup(currentImport);
+        legacyData.entries[legacyDate] = entry("8", "12");
+        legacyBackup = JSON.stringify({
+          format: storageApi.BACKUP_FORMAT,
+          version: model.SCHEMA_VERSION,
+          exportedAt: "2026-07-21T12:00:00.000Z",
+          data: legacyData
+        });
+
+        appWindow.confirm = function () {
+          confirmations += 1;
+          return true;
+        };
+        selectRestoreText(currentBackup, "current.json");
+
+        workflow = waitForCondition(function () {
+          var state = appWindow.TimesheetApp.getState();
+          return state.entries[importedDate]
+            && state.entries[importedDate].start === "<x>&";
+        }, "current backup was not restored").then(function () {
+          var importedInput = getInput(importedDate, "start");
+
+          equal(appWindow.TimesheetApp.getState().entries[entryDateKey].start, preservedStart);
+          equal(importedInput.value, "<x>&");
+          equal(importedInput.closest("tr").querySelector("x"), null);
+          equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+            "Backup restored and saved");
+          equal(JSON.parse(currentBackup).version, 1);
+
+          selectRestoreText(legacyBackup, "legacy.json");
+          return waitForCondition(function () {
+            var state = appWindow.TimesheetApp.getState();
+            return state.entries[legacyDate]
+              && state.entries[legacyDate].start === "8";
+          }, "legacy backup was not restored");
+        }).then(function () {
+          var saved = JSON.parse(appWindow.localStorage.getItem(TEST_STORAGE_KEY));
+
+          equal(confirmations, 2);
+          equal(appWindow.TimesheetApp.getState().preferences.dateFormat, preservedDateFormat);
+          equal(saved.version, 1);
+          equal(saved.entries[importedDate].start, "<x>&");
+          equal(saved.entries[legacyDate].start, "8");
+        });
+
+        return withCleanup(workflow, function () {
+          delete documentUnderTest.getElementById("restoreInput").files;
+          appWindow.confirm = originalConfirm;
+        });
+      });
+    })
+    .then(function () {
+      return run("leaves state unchanged when restore is cancelled", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var originalConfirm = appWindow.confirm;
+        var imported = appWindow.TimesheetModel.createEmptyState();
+        var stateBefore = JSON.stringify(appWindow.TimesheetApp.getState());
+        var confirmations = 0;
+        var workflow;
+
+        imported.schedules[currentMonthKey] = 12;
+        appWindow.confirm = function () {
+          confirmations += 1;
+          return false;
+        };
+        selectRestoreText(appWindow.TimesheetStorage.serializeBackup(imported), "cancel.json");
+
+        workflow = waitForCondition(function () {
+          return documentUnderTest.querySelector("[data-status-text]").textContent
+            === "Restore cancelled";
+        }, "restore cancellation was not reported").then(function () {
+          equal(confirmations, 1);
+          equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+        });
+
+        return withCleanup(workflow, function () {
+          delete documentUnderTest.getElementById("restoreInput").files;
+          appWindow.confirm = originalConfirm;
+        });
+      });
+    })
+    .then(function () {
+      return run("rejects malformed and over-limit backups before confirmation", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var model = appWindow.TimesheetModel;
+        var storageApi = appWindow.TimesheetStorage;
+        var originalConfirm = appWindow.confirm;
+        var stateBefore = JSON.stringify(appWindow.TimesheetApp.getState());
+        var excessiveData = {
+          version: model.SCHEMA_VERSION,
+          entries: {},
+          schedules: {}
+        };
+        var confirmations = 0;
+        var index;
+        var workflow;
+
+        appWindow.confirm = function () {
+          confirmations += 1;
+          return true;
+        };
+        selectRestoreText("not json", "malformed.json");
+
+        workflow = waitForCondition(function () {
+          return documentUnderTest.querySelector("[data-status-text]").textContent
+            === "The selected file is not valid JSON.";
+        }, "malformed backup was not rejected").then(function () {
+          for (index = 0; index <= model.MAX_ENTRY_COUNT; index += 1) {
+            excessiveData.entries["entry-" + index] = null;
+          }
+
+          selectRestoreText(JSON.stringify({
+            format: storageApi.BACKUP_FORMAT,
+            version: model.SCHEMA_VERSION,
+            exportedAt: "2026-07-21T12:00:00.000Z",
+            data: excessiveData
+          }), "too-many-entries.json");
+          return waitForCondition(function () {
+            return documentUnderTest.querySelector("[data-status-text]").textContent
+              === "The saved data contains more than 50000 entries.";
+          }, "over-limit backup was not rejected");
+        }).then(function () {
+          equal(confirmations, 0);
+          equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+        });
+
+        return withCleanup(workflow, function () {
+          delete documentUnderTest.getElementById("restoreInput").files;
+          appWindow.confirm = originalConfirm;
+        });
+      });
+    })
+    .then(function () {
+      return run("does not apply a restore when persistence fails", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var storagePrototype = Object.getPrototypeOf(appWindow.localStorage);
+        var originalSetItem = storagePrototype.setItem;
+        var originalConfirm = appWindow.confirm;
+        var imported = appWindow.TimesheetModel.createEmptyState();
+        var stateBefore = JSON.stringify(appWindow.TimesheetApp.getState());
+        var workflow;
+
+        imported.schedules[currentMonthKey] = 18;
+        storagePrototype.setItem = function () {
+          throw new Error("Write failed");
+        };
+        appWindow.confirm = function () {
+          return true;
+        };
+        selectRestoreText(appWindow.TimesheetStorage.serializeBackup(imported), "write-failure.json");
+
+        workflow = waitForCondition(function () {
+          return documentUnderTest.querySelector("[data-status-text]").textContent
+            === "Browser storage rejected this edit. It was not saved.";
+        }, "restore write failure was not reported").then(function () {
+          equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+        });
+
+        return withCleanup(workflow, function () {
+          delete documentUnderTest.getElementById("restoreInput").files;
+          storagePrototype.setItem = originalSetItem;
+          appWindow.confirm = originalConfirm;
+        });
+      });
+    })
+    .then(function () {
+      return run("rejects oversized backups before reading them", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var restoreInput = documentUnderTest.getElementById("restoreInput");
+        var originalFileReader = appWindow.FileReader;
+        var originalConfirm = appWindow.confirm;
+        var stateBefore = JSON.stringify(appWindow.TimesheetApp.getState());
+        var readerCalls = 0;
+        var confirmCalls = 0;
+
+        appWindow.FileReader = function () {
+          readerCalls += 1;
+        };
+        appWindow.confirm = function () {
+          confirmCalls += 1;
+          return true;
+        };
+        Object.defineProperty(restoreInput, "files", {
+          configurable: true,
+          value: [{ size: appWindow.TimesheetStorage.MAX_BACKUP_BYTES + 1 }]
+        });
+
+        restoreInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+        equal(readerCalls, 0);
+        equal(confirmCalls, 0);
+        equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+        equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+          "Choose a backup no larger than 10 MiB.");
+        equal(documentUnderTest.getElementById("saveStatus").dataset.tone, "error");
+
+        delete restoreInput.files;
+        appWindow.FileReader = originalFileReader;
+        appWindow.confirm = originalConfirm;
+      });
+    })
+    .then(function () {
+      return run("preserves an initial storage write failure", function () {
+        var storage = frame.contentWindow.localStorage;
+        var fillerKeys;
+
+        storage.removeItem(TEST_STORAGE_KEY);
+        fillerKeys = fillStorageToCapacity(storage);
+        assert(fillerKeys.length > 0, "test should reserve browser storage capacity");
+
+        return reloadFrame().then(function () {
+          var status = getDocument().getElementById("saveStatus");
+          var message = status.querySelector("[data-status-text]").textContent;
+
+          removeStorageKeys(frame.contentWindow.localStorage, fillerKeys);
+          equal(status.dataset.tone, "error");
+          equal(message, "Browser storage rejected this edit. It was not saved.");
+        }, function (error) {
+          removeStorageKeys(frame.contentWindow.localStorage, fillerKeys);
+          throw error;
         });
       });
     })

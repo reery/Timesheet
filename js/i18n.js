@@ -12,13 +12,12 @@
   "use strict";
 
   var DEFAULT_LANGUAGE = "en";
-  var SUPPORTED_LANGUAGES = ["en", "de", "es", "fr"];
-  var LANGUAGE_NAMES = {
-    en: "English",
-    de: "Deutsch",
-    es: "Espa\u00f1ol",
-    fr: "Fran\u00e7ais"
-  };
+  var LANGUAGE_METADATA = [
+    { id: "en", name: "English" },
+    { id: "de", name: "Deutsch" },
+    { id: "es", name: "Espa\u00f1ol" },
+    { id: "fr", name: "Fran\u00e7ais" }
+  ];
   var CALENDARS = {
     en: {
       months: [
@@ -70,8 +69,6 @@
       "summary.label": "Monthly summary",
       "summary.worked": "Worked",
       "summary.expected": "Expected",
-      "summary.plannedMonth": "Planned month",
-      "summary.mondayFriday": "Monday to Friday",
       "summary.balance": "Balance",
       "summary.againstExpected": "against expected",
       "ledger.title": "Daily ledger",
@@ -99,8 +96,6 @@
       "about.localTracker": "Local work time tracker.",
       "about.license": "MIT licence.",
       "about.repository": "Timesheet repository on GitHub (opens in a new tab)",
-      "noscript.required": "This timesheet requires JavaScript to calculate and save entries.",
-      "month.heading": "{month} {year}",
       "title.month": "{month} {year} - Timesheet",
       "week.label": "Week {week}",
       "range.to": "{start} to {end}",
@@ -111,14 +106,11 @@
       "balance.detail": "{worked} worked - {target} target",
       "summary.notDueYet": "Not due yet",
       "summary.expectedHours": "{hours}h expected",
-      "summary.enteredFuture": "Future entries",
-      "summary.through": "Through {date}",
-      "summary.throughFuture": "Through {date} + future entries",
       "summary.decimalHours": "{hours} decimal hours",
       "summary.hours": "{hours} h",
       "schedule.eachWeekday": "{hours} h each weekday",
       "validation.hours": "Enter 0 to 168 hours.",
-      "validation.year": "Choose a year from 1900 to 9999.",
+      "validation.year": "Choose a year from {min} to {max}.",
       "shift.startFinish": "Enter both start and finish.",
       "shift.validTime": "Use a valid 24-hour time.",
       "shift.finishAfterStart": "Finish must be later than start on the same day.",
@@ -129,6 +121,7 @@
       "backup.downloaded": "Backup downloaded",
       "backup.createFailed": "The backup could not be created.",
       "backup.readFailed": "The selected backup could not be read.",
+      "backup.tooLarge": "Choose a backup no larger than {limit} MiB.",
       "backup.invalidJson": "The selected file is not valid JSON.",
       "backup.unsupported": "The selected file is not a supported timesheet backup.",
       "restore.confirm": "Restore this backup? Imported entries and monthly hours will replace matching local values. Other local dates will stay.",
@@ -141,6 +134,8 @@
       "storage.invalid.preferences": "The saved preferences are invalid.",
       "storage.invalid.entry": "The entry for {key} is invalid.",
       "storage.invalid.schedule": "The schedule for {key} is invalid.",
+      "storage.invalid.entriesLimit": "The saved data contains more than {limit} entries.",
+      "storage.invalid.schedulesLimit": "The saved data contains more than {limit} monthly schedules.",
       "storage.unavailableReload": "Browser storage is unavailable. Changes will not survive a reload.",
       "storage.readFailedReload": "The saved timesheet could not be read. Changes will not survive a reload.",
       "storage.corruptedBlank": "The saved timesheet is corrupted. A blank view was opened without overwriting it.",
@@ -171,8 +166,6 @@
       "summary.label": "Monats\u00fcbersicht",
       "summary.worked": "Gearbeitet",
       "summary.expected": "Erwartet",
-      "summary.plannedMonth": "Geplanter Monat",
-      "summary.mondayFriday": "Montag bis Freitag",
       "summary.balance": "Saldo",
       "summary.againstExpected": "gegen\u00fcber Soll",
       "ledger.title": "Tages\u00fcbersicht",
@@ -200,8 +193,6 @@
       "about.localTracker": "Lokale Arbeitszeiterfassung.",
       "about.license": "MIT-Lizenz.",
       "about.repository": "Timesheet-Repository auf GitHub (wird in einem neuen Tab ge\u00f6ffnet)",
-      "noscript.required": "Dieser Stundenzettel ben\u00f6tigt JavaScript, um Eintr\u00e4ge zu berechnen und zu speichern.",
-      "month.heading": "{month} {year}",
       "title.month": "{month} {year} - Timesheet",
       "week.label": "Woche {week}",
       "range.to": "{start} bis {end}",
@@ -212,14 +203,11 @@
       "balance.detail": "{worked} gearbeitet - {target} Soll",
       "summary.notDueYet": "Noch nicht f\u00e4llig",
       "summary.expectedHours": "{hours} Std. erwartet",
-      "summary.enteredFuture": "Zuk\u00fcnftige Eintr\u00e4ge",
-      "summary.through": "Bis {date}",
-      "summary.throughFuture": "Bis {date} + zuk\u00fcnftige Eintr\u00e4ge",
-      "summary.decimalHours": "{hours} Dezimalstunden",
+      "summary.decimalHours": "{hours} h dezimal",
       "summary.hours": "{hours} Std.",
       "schedule.eachWeekday": "{hours} Std. je Werktag",
       "validation.hours": "0 bis 168 Stunden eingeben.",
-      "validation.year": "Ein Jahr zwischen 1900 und 9999 ausw\u00e4hlen.",
+      "validation.year": "Ein Jahr zwischen {min} und {max} ausw\u00e4hlen.",
       "shift.startFinish": "Beginn und Ende eingeben.",
       "shift.validTime": "Eine g\u00fcltige Uhrzeit im 24-Stunden-Format eingeben.",
       "shift.finishAfterStart": "Das Ende muss am selben Tag nach dem Beginn liegen.",
@@ -230,6 +218,7 @@
       "backup.downloaded": "Sicherung heruntergeladen",
       "backup.createFailed": "Die Sicherung konnte nicht erstellt werden.",
       "backup.readFailed": "Die ausgew\u00e4hlte Sicherung konnte nicht gelesen werden.",
+      "backup.tooLarge": "Eine Sicherung mit h\u00f6chstens {limit} MiB ausw\u00e4hlen.",
       "backup.invalidJson": "Die ausgew\u00e4hlte Datei enth\u00e4lt kein g\u00fcltiges JSON.",
       "backup.unsupported": "Die ausgew\u00e4hlte Datei ist keine unterst\u00fctzte Timesheet-Sicherung.",
       "restore.confirm": "Diese Sicherung wiederherstellen? Importierte Eintr\u00e4ge und Monatsstunden ersetzen passende lokale Werte. Andere lokale Daten bleiben erhalten.",
@@ -242,6 +231,8 @@
       "storage.invalid.preferences": "Die gespeicherten Einstellungen sind ung\u00fcltig.",
       "storage.invalid.entry": "Der Eintrag f\u00fcr {key} ist ung\u00fcltig.",
       "storage.invalid.schedule": "Der Zeitplan f\u00fcr {key} ist ung\u00fcltig.",
+      "storage.invalid.entriesLimit": "Die gespeicherten Daten enthalten mehr als {limit} Eintr\u00e4ge.",
+      "storage.invalid.schedulesLimit": "Die gespeicherten Daten enthalten mehr als {limit} Monatspl\u00e4ne.",
       "storage.unavailableReload": "Der Browserspeicher ist nicht verf\u00fcgbar. \u00c4nderungen bleiben nach dem Neuladen nicht erhalten.",
       "storage.readFailedReload": "Der gespeicherte Stundenzettel konnte nicht gelesen werden. \u00c4nderungen bleiben nach dem Neuladen nicht erhalten.",
       "storage.corruptedBlank": "Der gespeicherte Stundenzettel ist besch\u00e4digt. Eine leere Ansicht wurde ge\u00f6ffnet, ohne ihn zu \u00fcberschreiben.",
@@ -272,8 +263,6 @@
       "summary.label": "Resumen mensual",
       "summary.worked": "Trabajado",
       "summary.expected": "Previsto",
-      "summary.plannedMonth": "Mes planificado",
-      "summary.mondayFriday": "De lunes a viernes",
       "summary.balance": "Balance",
       "summary.againstExpected": "frente a lo previsto",
       "ledger.title": "Registro diario",
@@ -301,8 +290,6 @@
       "about.localTracker": "Registro local del tiempo de trabajo.",
       "about.license": "Licencia MIT.",
       "about.repository": "Repositorio de Timesheet en GitHub (se abre en una pesta\u00f1a nueva)",
-      "noscript.required": "Este parte de horas necesita JavaScript para calcular y guardar entradas.",
-      "month.heading": "{month} de {year}",
       "title.month": "{month} de {year} - Timesheet",
       "week.label": "Semana {week}",
       "range.to": "{start} a {end}",
@@ -313,14 +300,11 @@
       "balance.detail": "{worked} trabajado - objetivo {target}",
       "summary.notDueYet": "A\u00fan no corresponde",
       "summary.expectedHours": "{hours} h previstas",
-      "summary.enteredFuture": "Entradas futuras",
-      "summary.through": "Hasta {date}",
-      "summary.throughFuture": "Hasta {date} + entradas futuras",
       "summary.decimalHours": "{hours} horas decimales",
       "summary.hours": "{hours} h",
       "schedule.eachWeekday": "{hours} h cada d\u00eda laborable",
       "validation.hours": "Introduce entre 0 y 168 horas.",
-      "validation.year": "Elige un a\u00f1o entre 1900 y 9999.",
+      "validation.year": "Elige un a\u00f1o entre {min} y {max}.",
       "shift.startFinish": "Introduce el inicio y el fin.",
       "shift.validTime": "Usa una hora v\u00e1lida en formato de 24 horas.",
       "shift.finishAfterStart": "El fin debe ser posterior al inicio del mismo d\u00eda.",
@@ -331,6 +315,7 @@
       "backup.downloaded": "Copia de seguridad descargada",
       "backup.createFailed": "No se pudo crear la copia de seguridad.",
       "backup.readFailed": "No se pudo leer la copia de seguridad seleccionada.",
+      "backup.tooLarge": "Elige una copia de seguridad de no m\u00e1s de {limit} MiB.",
       "backup.invalidJson": "El archivo seleccionado no contiene JSON v\u00e1lido.",
       "backup.unsupported": "El archivo seleccionado no es una copia de seguridad compatible.",
       "restore.confirm": "\u00bfRestaurar esta copia de seguridad? Las entradas y horas mensuales importadas sustituir\u00e1n los valores locales coincidentes. Las dem\u00e1s fechas locales se conservar\u00e1n.",
@@ -343,6 +328,8 @@
       "storage.invalid.preferences": "Las preferencias guardadas no son v\u00e1lidas.",
       "storage.invalid.entry": "La entrada de {key} no es v\u00e1lida.",
       "storage.invalid.schedule": "El horario de {key} no es v\u00e1lido.",
+      "storage.invalid.entriesLimit": "Los datos guardados contienen m\u00e1s de {limit} entradas.",
+      "storage.invalid.schedulesLimit": "Los datos guardados contienen m\u00e1s de {limit} horarios mensuales.",
       "storage.unavailableReload": "El almacenamiento del navegador no est\u00e1 disponible. Los cambios no se conservar\u00e1n al recargar.",
       "storage.readFailedReload": "No se pudo leer el parte de horas guardado. Los cambios no se conservar\u00e1n al recargar.",
       "storage.corruptedBlank": "El parte de horas guardado est\u00e1 da\u00f1ado. Se abri\u00f3 una vista vac\u00eda sin sobrescribirlo.",
@@ -373,8 +360,6 @@
       "summary.label": "R\u00e9sum\u00e9 mensuel",
       "summary.worked": "Travaill\u00e9",
       "summary.expected": "Attendu",
-      "summary.plannedMonth": "Mois planifi\u00e9",
-      "summary.mondayFriday": "Du lundi au vendredi",
       "summary.balance": "Solde",
       "summary.againstExpected": "par rapport \u00e0 l'attendu",
       "ledger.title": "Registre quotidien",
@@ -402,8 +387,6 @@
       "about.localTracker": "Suivi local du temps de travail.",
       "about.license": "Licence MIT.",
       "about.repository": "D\u00e9p\u00f4t Timesheet sur GitHub (s'ouvre dans un nouvel onglet)",
-      "noscript.required": "Cette feuille de temps n\u00e9cessite JavaScript pour calculer et enregistrer les saisies.",
-      "month.heading": "{month} {year}",
       "title.month": "{month} {year} - Timesheet",
       "week.label": "Semaine {week}",
       "range.to": "du {start} au {end}",
@@ -414,14 +397,11 @@
       "balance.detail": "{worked} travaill\u00e9 - objectif {target}",
       "summary.notDueYet": "Pas encore exigible",
       "summary.expectedHours": "{hours} h attendues",
-      "summary.enteredFuture": "Saisies futures",
-      "summary.through": "Jusqu'au {date}",
-      "summary.throughFuture": "Jusqu'au {date} + saisies futures",
       "summary.decimalHours": "{hours} heures d\u00e9cimales",
       "summary.hours": "{hours} h",
       "schedule.eachWeekday": "{hours} h chaque jour ouvr\u00e9",
       "validation.hours": "Saisissez entre 0 et 168 heures.",
-      "validation.year": "Choisissez une ann\u00e9e entre 1900 et 9999.",
+      "validation.year": "Choisissez une ann\u00e9e entre {min} et {max}.",
       "shift.startFinish": "Saisissez le d\u00e9but et la fin.",
       "shift.validTime": "Utilisez une heure valide au format 24 heures.",
       "shift.finishAfterStart": "La fin doit \u00eatre post\u00e9rieure au d\u00e9but le m\u00eame jour.",
@@ -432,6 +412,7 @@
       "backup.downloaded": "Sauvegarde t\u00e9l\u00e9charg\u00e9e",
       "backup.createFailed": "La sauvegarde n'a pas pu \u00eatre cr\u00e9\u00e9e.",
       "backup.readFailed": "La sauvegarde s\u00e9lectionn\u00e9e n'a pas pu \u00eatre lue.",
+      "backup.tooLarge": "Choisissez une sauvegarde de {limit} Mio maximum.",
       "backup.invalidJson": "Le fichier s\u00e9lectionn\u00e9 ne contient pas de JSON valide.",
       "backup.unsupported": "Le fichier s\u00e9lectionn\u00e9 n'est pas une sauvegarde prise en charge.",
       "restore.confirm": "Restaurer cette sauvegarde ? Les saisies et heures mensuelles import\u00e9es remplaceront les valeurs locales correspondantes. Les autres dates locales seront conserv\u00e9es.",
@@ -444,6 +425,8 @@
       "storage.invalid.preferences": "Les pr\u00e9f\u00e9rences enregistr\u00e9es ne sont pas valides.",
       "storage.invalid.entry": "La saisie du {key} n'est pas valide.",
       "storage.invalid.schedule": "L'horaire de {key} n'est pas valide.",
+      "storage.invalid.entriesLimit": "Les donn\u00e9es enregistr\u00e9es contiennent plus de {limit} saisies.",
+      "storage.invalid.schedulesLimit": "Les donn\u00e9es enregistr\u00e9es contiennent plus de {limit} horaires mensuels.",
       "storage.unavailableReload": "Le stockage du navigateur n'est pas disponible. Les modifications ne seront pas conserv\u00e9es apr\u00e8s rechargement.",
       "storage.readFailedReload": "La feuille de temps enregistr\u00e9e n'a pas pu \u00eatre lue. Les modifications ne seront pas conserv\u00e9es apr\u00e8s rechargement.",
       "storage.corruptedBlank": "La feuille de temps enregistr\u00e9e est endommag\u00e9e. Une vue vide a \u00e9t\u00e9 ouverte sans l'\u00e9craser.",
@@ -455,9 +438,26 @@
       "storage.unreadableEdit": "Cette modification n'a pas \u00e9t\u00e9 enregistr\u00e9e. Restaurez une sauvegarde valide pour remplacer le stockage illisible."
     }
   };
+  var LANGUAGES = LANGUAGE_METADATA.map(function (metadata) {
+    return {
+      id: metadata.id,
+      name: metadata.name,
+      calendar: CALENDARS[metadata.id],
+      catalog: CATALOGS[metadata.id]
+    };
+  });
+  var LANGUAGE_BY_ID = {};
+  var SUPPORTED_LANGUAGES;
+
+  LANGUAGES.forEach(function (language) {
+    LANGUAGE_BY_ID[language.id] = language;
+  });
+  SUPPORTED_LANGUAGES = LANGUAGES.map(function (language) {
+    return language.id;
+  });
 
   function isSupportedLanguage(language) {
-    return SUPPORTED_LANGUAGES.indexOf(language) !== -1;
+    return Object.prototype.hasOwnProperty.call(LANGUAGE_BY_ID, language);
   }
 
   function normalizeLanguage(language) {
@@ -465,11 +465,11 @@
   }
 
   function translate(language, key, parameters) {
-    var selectedLanguage = normalizeLanguage(language);
-    var template = CATALOGS[selectedLanguage][key];
+    var selectedLanguage = LANGUAGE_BY_ID[normalizeLanguage(language)];
+    var template = selectedLanguage.catalog[key];
 
     if (template === undefined) {
-      template = CATALOGS[DEFAULT_LANGUAGE][key];
+      template = LANGUAGE_BY_ID[DEFAULT_LANGUAGE].catalog[key];
     }
     if (template === undefined) {
       return key;
@@ -483,7 +483,7 @@
   }
 
   function getCalendar(language) {
-    var calendar = CALENDARS[normalizeLanguage(language)];
+    var calendar = LANGUAGE_BY_ID[normalizeLanguage(language)].calendar;
 
     return {
       months: calendar.months.slice(),
@@ -492,16 +492,24 @@
   }
 
   function getLanguageName(language) {
-    return LANGUAGE_NAMES[normalizeLanguage(language)];
+    return LANGUAGE_BY_ID[normalizeLanguage(language)].name;
+  }
+
+  function getLanguages() {
+    return LANGUAGES.map(function (language) {
+      return { id: language.id, name: language.name };
+    });
   }
 
   function getMissingTranslations(language) {
+    var defaultCatalog = LANGUAGE_BY_ID[DEFAULT_LANGUAGE].catalog;
+
     if (!isSupportedLanguage(language)) {
-      return Object.keys(CATALOGS[DEFAULT_LANGUAGE]);
+      return Object.keys(defaultCatalog);
     }
 
-    return Object.keys(CATALOGS[DEFAULT_LANGUAGE]).filter(function (key) {
-      return !Object.prototype.hasOwnProperty.call(CATALOGS[language], key);
+    return Object.keys(defaultCatalog).filter(function (key) {
+      return !Object.prototype.hasOwnProperty.call(LANGUAGE_BY_ID[language].catalog, key);
     });
   }
 
@@ -513,6 +521,7 @@
     translate: translate,
     getCalendar: getCalendar,
     getLanguageName: getLanguageName,
+    getLanguages: getLanguages,
     getMissingTranslations: getMissingTranslations
   };
 });
