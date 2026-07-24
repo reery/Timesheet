@@ -11,6 +11,7 @@
   function MemoryStorage() {
     this.values = {};
     this.failWrites = false;
+    this.failRemovals = false;
   }
 
   MemoryStorage.prototype.getItem = function (key) {
@@ -22,6 +23,13 @@
       throw new Error("Write failed");
     }
     this.values[key] = String(value);
+  };
+
+  MemoryStorage.prototype.removeItem = function (key) {
+    if (this.failRemovals) {
+      throw new Error("Removal failed");
+    }
+    delete this.values[key];
   };
 
   function test(name, callback) {
@@ -167,6 +175,39 @@
     memory.failWrites = true;
 
     equal(storageApi.saveState(memory, model.createEmptyState()).ok, false);
+  });
+
+  test("deletes only the requested storage key", function () {
+    var memory = new MemoryStorage();
+    var customKey = "local-timesheet.test.delete-state";
+    var result;
+
+    memory.setItem(storageApi.STORAGE_KEY, "default state");
+    memory.setItem(customKey, "custom state");
+    memory.setItem("unrelated", "keep me");
+
+    result = storageApi.deleteState(memory, customKey);
+    equal(result.ok, true);
+    equal(result.messageKey, "storage.deleted");
+    equal(memory.getItem(customKey), null);
+    equal(memory.getItem(storageApi.STORAGE_KEY), "default state");
+    equal(memory.getItem("unrelated"), "keep me");
+
+    equal(storageApi.deleteState(memory).ok, true);
+    equal(memory.getItem(storageApi.STORAGE_KEY), null);
+    equal(memory.getItem("unrelated"), "keep me");
+  });
+
+  test("reports failed deletion without changing stored data", function () {
+    var memory = new MemoryStorage();
+
+    memory.setItem(storageApi.STORAGE_KEY, "saved state");
+    memory.failRemovals = true;
+
+    equal(storageApi.deleteState(null).messageKey, "storage.unavailableDelete");
+    equal(storageApi.deleteState(memory).ok, false);
+    equal(storageApi.deleteState(memory).messageKey, "storage.rejectedDelete");
+    equal(memory.getItem(storageApi.STORAGE_KEY), "saved state");
   });
 
   test("snapshots the previous effective schedule once", function () {

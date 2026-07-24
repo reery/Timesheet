@@ -421,10 +421,10 @@
         settingsSections = dialog.querySelectorAll(".settings-section");
         sectionHeading = settingsSections[0].querySelector("h3");
         settingLabel = settingsSections[0].querySelector("label");
-        equal(settingsSections.length, 3);
+        equal(settingsSections.length, 4);
         equal(Array.prototype.map.call(settingsSections, function (section) {
           return section.querySelector("h3").textContent;
-        }).join(","), "Display,Time ledger,About");
+        }).join(","), "Display,Time ledger,Data,About");
         assert(parseFloat(frame.contentWindow.getComputedStyle(sectionHeading).fontSize)
           > parseFloat(frame.contentWindow.getComputedStyle(settingLabel).fontSize),
         "section headings should be larger than setting labels");
@@ -436,6 +436,7 @@
           .borderBottomWidth, "1px");
         equal(frame.contentWindow.getComputedStyle(settingsSections[1]).borderTopWidth, "1px");
         equal(frame.contentWindow.getComputedStyle(settingsSections[2]).borderTopWidth, "1px");
+        equal(frame.contentWindow.getComputedStyle(settingsSections[3]).borderTopWidth, "1px");
         equal(documentUnderTest.getElementById("workDaysLabel").textContent, "Work days");
         equal(dialog.querySelector(".work-days-separator").textContent, "to");
         equal(workDayStartSelect.getAttribute("aria-label"), "First work day");
@@ -522,6 +523,82 @@
             "en"
           ));
           equal(reloadedTime.getAttribute("datetime"), todayKey);
+        });
+      });
+    })
+    .then(function () {
+      return run("cancels local data deletion inside preferences", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var settingsDialog = documentUnderTest.getElementById("settingsDialog");
+        var deleteDialog = documentUnderTest.getElementById("deleteDataDialog");
+        var deleteButton = documentUnderTest.getElementById("deleteLocalDataButton");
+        var yesButton = documentUnderTest.getElementById("confirmDeleteDataButton");
+        var backupButton = documentUnderTest.getElementById("backupDeleteDataButton");
+        var noButton = documentUnderTest.getElementById("cancelDeleteDataButton");
+        var stateBefore = JSON.stringify(appWindow.TimesheetApp.getState());
+        var storedBefore = appWindow.localStorage.getItem(TEST_STORAGE_KEY);
+        var workflow;
+
+        workflow = Promise.resolve().then(function () {
+          click("menuButton");
+          click("settingsButton");
+          equal(deleteButton.textContent, "Delete local data");
+          click("deleteLocalDataButton");
+
+          equal(settingsDialog.open, true);
+          equal(deleteDialog.open, true);
+          equal(deleteDialog.getAttribute("aria-labelledby"), "deleteDataTitle");
+          equal(deleteDialog.getAttribute("aria-describedby"), "deleteDataQuestion");
+          equal(documentUnderTest.getElementById("deleteDataTitle").textContent,
+            "Delete local data");
+          equal(documentUnderTest.getElementById("deleteDataQuestion").textContent,
+            "Do you really want to delete all locally saved data in your browser?");
+          equal(Array.prototype.map.call(
+            deleteDialog.querySelectorAll(".delete-data-dialog-actions button"),
+            function (button) {
+              return button.textContent;
+            }
+          ).join(","), "Yes,Backup and delete,No");
+          equal(yesButton.classList.contains("button-danger"), true);
+          equal(backupButton.classList.contains("button-positive"), true);
+          equal(noButton.classList.contains("button-secondary"), true);
+          assert(documentUnderTest.activeElement === noButton,
+            "No should receive initial confirmation focus");
+
+          click("cancelDeleteDataButton");
+          equal(deleteDialog.open, false);
+          equal(settingsDialog.open, true);
+
+          click("deleteLocalDataButton");
+          deleteDialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+          equal(deleteDialog.open, false);
+          equal(settingsDialog.open, true);
+
+          click("deleteLocalDataButton");
+          noButton.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true
+          }));
+          equal(deleteDialog.open, false);
+          equal(settingsDialog.open, true);
+
+          click("deleteLocalDataButton");
+          deleteDialog.close();
+          equal(settingsDialog.open, true);
+          equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+          equal(appWindow.localStorage.getItem(TEST_STORAGE_KEY), storedBefore);
+          click("settingsCloseButton");
+        });
+
+        return withCleanup(workflow, function () {
+          if (deleteDialog.open) {
+            deleteDialog.close();
+          }
+          if (settingsDialog.open) {
+            settingsDialog.close();
+          }
         });
       });
     })
@@ -1778,6 +1855,275 @@
         delete restoreInput.files;
         appWindow.FileReader = originalFileReader;
         appWindow.confirm = originalConfirm;
+      });
+    })
+    .then(function () {
+      return run("deletes active local data and cancels pending saves", function () {
+        var appWindow = frame.contentWindow;
+        var storage = appWindow.localStorage;
+        var storageApi = appWindow.TimesheetStorage;
+        var model = appWindow.TimesheetModel;
+        var seeded = model.createEmptyState();
+        var seededEntry = model.createEmptyEntry();
+        var sentinelKey = "local-timesheet.test.delete-sentinel";
+        var seedResult;
+        var workflow;
+
+        seededEntry.start = "800";
+        seededEntry.finish = "1600";
+        seededEntry.absence = true;
+        seeded.entries[entryDateKey] = seededEntry;
+        seeded.schedules[currentMonthKey] = 37;
+        seeded.preferences.language = "fr";
+        seeded.preferences.theme = "midnight-fog";
+        seeded.preferences.dateFormat = "month-day-slash";
+        seeded.preferences.workDayRange = { start: 2, end: 6 };
+        seedResult = storageApi.saveState(storage, seeded, TEST_STORAGE_KEY);
+        assert(seedResult.ok,
+          "direct-delete seed should save: " + seedResult.messageKey + " / " + seedResult.message);
+        storage.setItem(sentinelKey, "keep me");
+
+        workflow = reloadFrame().then(function () {
+          var documentUnderTest = getDocument();
+          var state;
+
+          equal(documentUnderTest.documentElement.lang, "fr");
+          equal(documentUnderTest.documentElement.dataset.theme, "midnight-fog");
+          typeValue(getInput(entryDateKey, "start"), "7");
+          click("menuButton");
+          click("settingsButton");
+          click("deleteLocalDataButton");
+          click("confirmDeleteDataButton");
+
+          state = appWindow.TimesheetApp.getState();
+          assert(!documentUnderTest.getElementById("deleteDataDialog").open,
+            "direct delete should close confirmation");
+          assert(documentUnderTest.getElementById("settingsDialog").open,
+            "direct delete should keep preferences open");
+          equal(appWindow.localStorage.getItem(TEST_STORAGE_KEY), null);
+          equal(appWindow.localStorage.getItem(sentinelKey), "keep me");
+          equal(Object.keys(state.entries).length, 0);
+          equal(Object.keys(state.schedules).length, 0);
+          equal(JSON.stringify(state.preferences),
+            JSON.stringify(appWindow.TimesheetModel.createEmptyState().preferences));
+          equal(documentUnderTest.documentElement.lang, "en");
+          equal(documentUnderTest.documentElement.dataset.theme, "default-gradient");
+          equal(documentUnderTest.getElementById("dateFormatSelect").value, "iso");
+          equal(documentUnderTest.getElementById("workDayStartSelect").value, "1");
+          equal(documentUnderTest.getElementById("workDayEndSelect").value, "5");
+          equal(documentUnderTest.getElementById("weeklyHours").value, "32");
+          equal(getInput(entryDateKey, "start").value, "");
+          equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+            "Local data deleted");
+          equal(documentUnderTest.getElementById("saveStatus").dataset.tone, "success");
+
+          return wait(350);
+        }).then(function () {
+          equal(appWindow.localStorage.getItem(TEST_STORAGE_KEY), null);
+          click("settingsCloseButton");
+        });
+
+        return withCleanup(workflow, function () {
+          var documentUnderTest = getDocument();
+          appWindow.localStorage.removeItem(sentinelKey);
+          if (documentUnderTest.getElementById("deleteDataDialog").open) {
+            documentUnderTest.getElementById("deleteDataDialog").close();
+          }
+          if (documentUnderTest.getElementById("settingsDialog").open) {
+            documentUnderTest.getElementById("settingsDialog").close();
+          }
+        });
+      });
+    })
+    .then(function () {
+      return run("backs up current data before deleting it", function () {
+        var appWindow = frame.contentWindow;
+        var storage = appWindow.localStorage;
+        var seeded = appWindow.TimesheetModel.createEmptyState();
+        var seededEntry = appWindow.TimesheetModel.createEmptyEntry();
+        var seedResult;
+
+        seededEntry.start = "900";
+        seededEntry.finish = "1730";
+        seededEntry.absence = true;
+        seeded.entries[entryDateKey] = seededEntry;
+        seeded.schedules[currentMonthKey] = 35;
+        seeded.preferences.language = "es";
+        seeded.preferences.theme = "ember-coast";
+        seeded.preferences.dateFormat = "day-month-year-dots";
+        seeded.preferences.workDayRange = { start: 0, end: 4 };
+        seedResult = appWindow.TimesheetStorage.saveState(
+          storage,
+          seeded,
+          TEST_STORAGE_KEY
+        );
+        assert(seedResult.ok,
+          "backup-delete seed should save: " + seedResult.messageKey + " / " + seedResult.message);
+
+        return reloadFrame().then(function () {
+          var documentUnderTest = getDocument();
+          var currentStorage = appWindow.localStorage;
+          var storageApi = appWindow.TimesheetStorage;
+          var storagePrototype = Object.getPrototypeOf(currentStorage);
+          var anchorPrototype = appWindow.HTMLAnchorElement.prototype;
+          var originalSerializeBackup = storageApi.serializeBackup;
+          var originalRemoveItem = storagePrototype.removeItem;
+          var originalAnchorClick = anchorPrototype.click;
+          var sequence = [];
+          var backupText = "";
+          var downloadName = "";
+          var workflow;
+
+          storageApi.serializeBackup = function (state) {
+            sequence.push("serialize");
+            backupText = originalSerializeBackup(state);
+            return backupText;
+          };
+          anchorPrototype.click = function () {
+            sequence.push("download");
+            downloadName = this.download;
+          };
+          storagePrototype.removeItem = function (key) {
+            if (key === TEST_STORAGE_KEY) {
+              sequence.push("delete");
+            }
+            return originalRemoveItem.call(this, key);
+          };
+
+          workflow = Promise.resolve().then(function () {
+            var backup;
+
+            click("menuButton");
+            click("settingsButton");
+            click("deleteLocalDataButton");
+            click("backupDeleteDataButton");
+
+            backup = JSON.parse(backupText);
+            equal(sequence.join(","), "serialize,download,delete");
+            equal(downloadName,
+              "timesheet-backup-" + appWindow.TimesheetCore.toIsoDate(new appWindow.Date()) + ".json");
+            equal(backup.data.entries[entryDateKey].finish, "1730");
+            assert(backup.data.entries[entryDateKey].absence,
+              "backup should preserve absence");
+            equal(backup.data.schedules[currentMonthKey], 35);
+            equal(backup.data.preferences.language, "es");
+            equal(backup.data.preferences.design, "ember-coast");
+            equal(backup.data.preferences.dateFormat, "day-month-year-dots");
+            equal(currentStorage.getItem(TEST_STORAGE_KEY), null);
+            equal(documentUnderTest.getElementById("deleteDataDialog").open, false);
+            assert(documentUnderTest.getElementById("settingsDialog").open,
+              "backup delete should keep preferences open");
+            equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+              "Local data deleted");
+            return wait(0);
+          });
+
+          return withCleanup(workflow, function () {
+            storageApi.serializeBackup = originalSerializeBackup;
+            storagePrototype.removeItem = originalRemoveItem;
+            anchorPrototype.click = originalAnchorClick;
+            if (documentUnderTest.getElementById("deleteDataDialog").open) {
+              documentUnderTest.getElementById("deleteDataDialog").close();
+            }
+            if (documentUnderTest.getElementById("settingsDialog").open) {
+              documentUnderTest.getElementById("settingsDialog").close();
+            }
+          });
+        });
+      });
+    })
+    .then(function () {
+      return run("keeps local data when backup or deletion fails", function () {
+        var appWindow = frame.contentWindow;
+        var storage = appWindow.localStorage;
+        var seeded = appWindow.TimesheetModel.createEmptyState();
+        var seededEntry = appWindow.TimesheetModel.createEmptyEntry();
+        var seedResult;
+
+        seededEntry.start = "815";
+        seededEntry.finish = "1645";
+        seeded.entries[entryDateKey] = seededEntry;
+        seeded.schedules[currentMonthKey] = 30;
+        seedResult = appWindow.TimesheetStorage.saveState(
+          storage,
+          seeded,
+          TEST_STORAGE_KEY
+        );
+        assert(seedResult.ok,
+          "failure-path seed should save: " + seedResult.messageKey + " / " + seedResult.message);
+
+        return reloadFrame().then(function () {
+          var documentUnderTest = getDocument();
+          var currentStorage = appWindow.localStorage;
+          var storageApi = appWindow.TimesheetStorage;
+          var storagePrototype = Object.getPrototypeOf(currentStorage);
+          var originalSerializeBackup = storageApi.serializeBackup;
+          var originalRemoveItem = storagePrototype.removeItem;
+          var stateBefore = JSON.stringify(appWindow.TimesheetApp.getState());
+          var storedBefore = currentStorage.getItem(TEST_STORAGE_KEY);
+          var removalCalls = 0;
+          var workflow;
+
+          storageApi.serializeBackup = function () {
+            throw new Error("Backup failed");
+          };
+          storagePrototype.removeItem = function (key) {
+            if (key === TEST_STORAGE_KEY) {
+              removalCalls += 1;
+            }
+            return originalRemoveItem.call(this, key);
+          };
+
+          workflow = Promise.resolve().then(function () {
+            click("menuButton");
+            click("settingsButton");
+            click("deleteLocalDataButton");
+            click("backupDeleteDataButton");
+
+            equal(removalCalls, 0);
+            assert(documentUnderTest.getElementById("deleteDataDialog").open,
+              "backup failure should keep confirmation open");
+            equal(documentUnderTest.getElementById("deleteDataError").hidden, false);
+            equal(documentUnderTest.getElementById("deleteDataError").textContent,
+              "The backup could not be created.");
+            equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+              "The backup could not be created.");
+            equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+            equal(currentStorage.getItem(TEST_STORAGE_KEY), storedBefore);
+
+            storageApi.serializeBackup = originalSerializeBackup;
+            storagePrototype.removeItem = function (key) {
+              if (key === TEST_STORAGE_KEY) {
+                removalCalls += 1;
+                throw new Error("Removal failed");
+              }
+              return originalRemoveItem.call(this, key);
+            };
+            click("confirmDeleteDataButton");
+
+            equal(removalCalls, 1);
+            assert(documentUnderTest.getElementById("deleteDataDialog").open,
+              "removal failure should keep confirmation open");
+            equal(documentUnderTest.getElementById("deleteDataError").textContent,
+              "Browser storage rejected the deletion. Local data was not deleted.");
+            equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+              "Browser storage rejected the deletion. Local data was not deleted.");
+            equal(documentUnderTest.getElementById("saveStatus").dataset.tone, "error");
+            equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+            equal(currentStorage.getItem(TEST_STORAGE_KEY), storedBefore);
+          });
+
+          return withCleanup(workflow, function () {
+            storageApi.serializeBackup = originalSerializeBackup;
+            storagePrototype.removeItem = originalRemoveItem;
+            if (documentUnderTest.getElementById("deleteDataDialog").open) {
+              documentUnderTest.getElementById("deleteDataDialog").close();
+            }
+            if (documentUnderTest.getElementById("settingsDialog").open) {
+              documentUnderTest.getElementById("settingsDialog").close();
+            }
+          });
+        });
       });
     })
     .then(function () {

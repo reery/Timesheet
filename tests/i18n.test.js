@@ -41,6 +41,11 @@
     equal(i18n.translate("de", "summary.decimalHours", { hours: "96" }), "96 h dezimal");
     equal(i18n.translate("en", "preferences.timeLedger"), "Time ledger");
     equal(i18n.translate("de", "preferences.workDays"), "Arbeitstage");
+    equal(i18n.translate("en", "deleteData.question"),
+      "Do you really want to delete all locally saved data in your browser?");
+    equal(i18n.translate("de", "preferences.deleteLocalData"), "Lokale Daten l\u00f6schen");
+    equal(i18n.translate("es", "deleteData.backupAndDelete"), "Hacer copia y eliminar");
+    equal(i18n.translate("fr", "storage.deleted"), "Donn\u00e9es locales supprim\u00e9es");
     equal(i18n.translate("es", "range.separator"), "a");
     equal(i18n.translate("fr", "schedule.eachWorkDay", { hours: "6" }),
       "6 h par jour travaill\u00e9");

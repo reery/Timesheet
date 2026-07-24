@@ -312,6 +312,28 @@ a:focus-visible {
   box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.06);
 }
 
+.button-danger,
+.button-positive {
+  color: var(--surface);
+  box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.12);
+}
+
+.button-danger {
+  border-color: var(--negative);
+  background: var(--negative);
+}
+
+.button-positive {
+  border-color: var(--positive);
+  background: var(--positive);
+}
+
+.button-danger:hover,
+.button-positive:hover {
+  filter: brightness(0.94);
+  box-shadow: 0 3px 10px rgba(var(--shadow-rgb), 0.18);
+}
+
 .button-secondary:hover,
 .button-quiet:hover,
 .icon-button:hover {
@@ -329,6 +351,14 @@ a:focus-visible {
 .icon-button:active {
   background: var(--accent-soft);
   box-shadow: none;
+}
+
+.button-danger:active {
+  background: var(--negative);
+}
+
+.button-positive:active {
+  background: var(--positive);
 }
 
 .button:disabled,
@@ -478,6 +508,48 @@ body.settings-open {
   font-size: 15px;
   font-weight: 750;
   text-transform: uppercase;
+}
+
+.settings-action-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 13px 0 5px;
+}
+
+.delete-data-dialog {
+  width: min(560px, calc(100% - 32px));
+}
+
+.delete-data-dialog-header {
+  justify-content: flex-start;
+}
+
+.delete-data-dialog-body {
+  padding-top: 22px;
+}
+
+.delete-data-dialog-body > p {
+  margin: 0;
+}
+
+.delete-data-error {
+  margin-top: 14px !important;
+  padding: 10px 12px;
+  color: var(--negative);
+  background: var(--negative-soft);
+  border-left: 3px solid var(--negative);
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.delete-data-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 18px 24px 22px;
+  border-top: 1px solid var(--line);
 }
 
 .setting-row {
@@ -1415,6 +1487,21 @@ noscript {
 
   .settings-dialog-body {
     padding: 5px 18px 20px;
+  }
+
+  .delete-data-dialog-body {
+    padding-top: 18px;
+  }
+
+  .delete-data-dialog-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 16px 18px 18px;
+  }
+
+  .delete-data-dialog-actions .button,
+  .settings-action-row .button {
+    width: 100%;
   }
 
   .setting-row {

@@ -61,6 +61,8 @@
       "menuButton", "headerActions", "settingsDialog", "settingsCloseButton",
       "dateFormatSelect", "languageSelect", "themeSelect",
       "workDayStartSelect", "workDayEndSelect",
+      "deleteLocalDataButton", "deleteDataDialog", "deleteDataError",
+      "confirmDeleteDataButton", "backupDeleteDataButton", "cancelDeleteDataButton",
       "previousMonth", "monthSelect", "yearInput", "nextMonth", "todayButton",
       "weeklyHours", "scheduleMessage", "dailyTarget",
       "monthWorked", "monthWorkedDecimal",
@@ -96,7 +98,13 @@
         languageSelect: elements.languageSelect,
         themeSelect: elements.themeSelect,
         workDayStartSelect: elements.workDayStartSelect,
-        workDayEndSelect: elements.workDayEndSelect
+        workDayEndSelect: elements.workDayEndSelect,
+        deleteLocalDataButton: elements.deleteLocalDataButton,
+        deleteDataDialog: elements.deleteDataDialog,
+        deleteDataError: elements.deleteDataError,
+        confirmDeleteDataButton: elements.confirmDeleteDataButton,
+        backupDeleteDataButton: elements.backupDeleteDataButton,
+        cancelDeleteDataButton: elements.cancelDeleteDataButton
       },
       getPreferences: function () {
         return state.preferences;
@@ -108,7 +116,9 @@
       onDateFormatChange: onDateFormatChange,
       onLanguageChange: onLanguageChange,
       onThemeChange: onThemeChange,
-      onWorkDayRangeChange: onWorkDayRangeChange
+      onWorkDayRangeChange: onWorkDayRangeChange,
+      onDeleteLocalData: deleteLocalData,
+      onBackupAndDelete: backupAndDelete
     });
     preferencesController.initialize();
   }
@@ -350,6 +360,7 @@
     var blob;
     var url;
     var link;
+    var result;
 
     flushPendingState();
 
@@ -366,10 +377,50 @@
       root.setTimeout(function () {
         URL.revokeObjectURL(url);
       }, 0);
-      setStatus("backup.downloaded", "success");
+      result = {
+        ok: true,
+        message: "Backup downloaded",
+        messageKey: "backup.downloaded",
+        messageParams: {}
+      };
     } catch (error) {
-      setStatus("backup.createFailed", "error");
+      result = {
+        ok: false,
+        message: "The backup could not be created.",
+        messageKey: "backup.createFailed",
+        messageParams: {}
+      };
     }
+
+    setDiagnosticStatus(result, result.ok ? "success" : "error");
+    return result;
+  }
+
+  function backupAndDelete() {
+    var backupResult = downloadBackup();
+
+    if (!backupResult.ok) {
+      return backupResult;
+    }
+
+    return deleteLocalData();
+  }
+
+  function deleteLocalData() {
+    var result = storageApi.deleteState(browserStorage, storageKey);
+
+    if (!result.ok) {
+      setDiagnosticStatus(result, "error");
+      return result;
+    }
+
+    clearPendingSave();
+    state = model.createEmptyState();
+    storageWritable = true;
+    applyPreferences();
+    ledgerController.render();
+    setDiagnosticStatus(result, "success");
+    return result;
   }
 
   function restoreBackup() {

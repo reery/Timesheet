@@ -156,6 +156,36 @@
     }
   }
 
+  function deleteState(storage, storageKey) {
+    var key = storageKey || STORAGE_KEY;
+
+    if (!storage) {
+      return {
+        ok: false,
+        message: "Browser storage is unavailable. Local data was not deleted.",
+        messageKey: "storage.unavailableDelete",
+        messageParams: {}
+      };
+    }
+
+    try {
+      storage.removeItem(key);
+      return {
+        ok: true,
+        message: "Local data deleted",
+        messageKey: "storage.deleted",
+        messageParams: {}
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: "Browser storage rejected the deletion. Local data was not deleted.",
+        messageKey: "storage.rejectedDelete",
+        messageParams: {}
+      };
+    }
+  }
+
   function serializeBackup(state, now) {
     var validation = model.validateState(state);
     var timestamp = now instanceof Date ? now : new Date();
@@ -225,6 +255,7 @@
     getBrowserStorage: getBrowserStorage,
     loadState: loadState,
     saveState: saveState,
+    deleteState: deleteState,
     serializeBackup: serializeBackup,
     parseBackup: parseBackup
   };

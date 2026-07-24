@@ -41,6 +41,17 @@
       elements.closeButton.addEventListener("click", close);
       elements.dialog.addEventListener("click", onDialogClick);
       elements.dialog.addEventListener("close", onDialogClose);
+      elements.deleteLocalDataButton.addEventListener("click", openDeleteDialog);
+      elements.deleteDataDialog.addEventListener("click", onDeleteDialogClick);
+      elements.deleteDataDialog.addEventListener("keydown", onDeleteDialogKeyDown);
+      elements.deleteDataDialog.addEventListener("close", onDeleteDialogClose);
+      elements.confirmDeleteDataButton.addEventListener("click", function () {
+        runDeleteAction(options.onDeleteLocalData);
+      });
+      elements.backupDeleteDataButton.addEventListener("click", function () {
+        runDeleteAction(options.onBackupAndDelete);
+      });
+      elements.cancelDeleteDataButton.addEventListener("click", closeDeleteDialog);
       elements.dateFormatSelect.addEventListener("change", onDateFormatChange);
       elements.languageSelect.addEventListener("change", onLanguageChange);
       elements.themeSelect.addEventListener("change", onThemeChange);
@@ -114,6 +125,43 @@
       }
     }
 
+    function openDeleteDialog() {
+      clearDeleteError();
+      elements.deleteDataDialog.showModal();
+      elements.cancelDeleteDataButton.focus({ preventScroll: true });
+    }
+
+    function closeDeleteDialog() {
+      if (elements.deleteDataDialog.open) {
+        elements.deleteDataDialog.close();
+      }
+    }
+
+    function clearDeleteError() {
+      elements.deleteDataError.hidden = true;
+      elements.deleteDataError.textContent = "";
+    }
+
+    function showDeleteError(result) {
+      var key = result.messageKey || result.errorKey;
+      var parameters = result.messageParams || result.errorParams;
+      var fallback = result.message || result.error;
+
+      elements.deleteDataError.textContent = options.translate(key, parameters, fallback);
+      elements.deleteDataError.hidden = false;
+    }
+
+    function runDeleteAction(action) {
+      var result = action();
+
+      if (result.ok) {
+        closeDeleteDialog();
+        return;
+      }
+
+      showDeleteError(result);
+    }
+
     function onDialogClick(event) {
       if (event.target === elements.dialog) {
         close();
@@ -123,6 +171,27 @@
     function onDialogClose() {
       root.document.body.classList.remove("settings-open");
       options.focusReturn();
+    }
+
+    function onDeleteDialogClick(event) {
+      if (event.target === elements.deleteDataDialog) {
+        closeDeleteDialog();
+      }
+    }
+
+    function onDeleteDialogKeyDown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeDeleteDialog();
+      }
+    }
+
+    function onDeleteDialogClose() {
+      clearDeleteError();
+      if (elements.dialog.open) {
+        elements.deleteLocalDataButton.focus({ preventScroll: true });
+      }
     }
 
     function onDateFormatChange() {

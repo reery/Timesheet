@@ -93,7 +93,14 @@
       "preferences.workDays": "Work days",
       "preferences.workDayStart": "First work day",
       "preferences.workDayEnd": "Last work day",
+      "preferences.data": "Data",
+      "preferences.deleteLocalData": "Delete local data",
       "preferences.about": "About",
+      "deleteData.title": "Delete local data",
+      "deleteData.question": "Do you really want to delete all locally saved data in your browser?",
+      "deleteData.yes": "Yes",
+      "deleteData.backupAndDelete": "Backup and delete",
+      "deleteData.no": "No",
       "theme.defaultGradient": "Morning Fog",
       "theme.midnightFog": "Midnight Fog",
       "theme.emberCoast": "Ember Coast",
@@ -150,7 +157,10 @@
       "storage.saving": "Saving\u2026",
       "storage.saved": "Saved locally",
       "storage.rejectedEdit": "Browser storage rejected this edit. It was not saved.",
-      "storage.unreadableEdit": "This edit was not saved. Restore a valid backup to replace unreadable storage."
+      "storage.unreadableEdit": "This edit was not saved. Restore a valid backup to replace unreadable storage.",
+      "storage.deleted": "Local data deleted",
+      "storage.unavailableDelete": "Browser storage is unavailable. Local data was not deleted.",
+      "storage.rejectedDelete": "Browser storage rejected the deletion. Local data was not deleted."
     },
     de: {
       "app.name": "Stundenzettel",
@@ -196,7 +206,14 @@
       "preferences.workDays": "Arbeitstage",
       "preferences.workDayStart": "Erster Arbeitstag",
       "preferences.workDayEnd": "Letzter Arbeitstag",
+      "preferences.data": "Daten",
+      "preferences.deleteLocalData": "Lokale Daten l\u00f6schen",
       "preferences.about": "Info",
+      "deleteData.title": "Lokale Daten l\u00f6schen",
+      "deleteData.question": "M\u00f6chten Sie wirklich alle lokal in Ihrem Browser gespeicherten Daten l\u00f6schen?",
+      "deleteData.yes": "Ja",
+      "deleteData.backupAndDelete": "Sichern und l\u00f6schen",
+      "deleteData.no": "Nein",
       "theme.defaultGradient": "Morning Fog",
       "theme.midnightFog": "Midnight Fog",
       "theme.emberCoast": "Ember Coast",
@@ -253,7 +270,10 @@
       "storage.saving": "Wird gespeichert\u2026",
       "storage.saved": "Lokal gespeichert",
       "storage.rejectedEdit": "Der Browserspeicher hat diese \u00c4nderung abgelehnt. Sie wurde nicht gespeichert.",
-      "storage.unreadableEdit": "Diese \u00c4nderung wurde nicht gespeichert. Eine g\u00fcltige Sicherung wiederherstellen, um den unlesbaren Speicher zu ersetzen."
+      "storage.unreadableEdit": "Diese \u00c4nderung wurde nicht gespeichert. Eine g\u00fcltige Sicherung wiederherstellen, um den unlesbaren Speicher zu ersetzen.",
+      "storage.deleted": "Lokale Daten gel\u00f6scht",
+      "storage.unavailableDelete": "Der Browserspeicher ist nicht verf\u00fcgbar. Lokale Daten wurden nicht gel\u00f6scht.",
+      "storage.rejectedDelete": "Der Browserspeicher hat das L\u00f6schen abgelehnt. Lokale Daten wurden nicht gel\u00f6scht."
     },
     es: {
       "app.name": "Parte de horas",
@@ -299,7 +319,14 @@
       "preferences.workDays": "D\u00edas laborables",
       "preferences.workDayStart": "Primer d\u00eda laborable",
       "preferences.workDayEnd": "\u00daltimo d\u00eda laborable",
+      "preferences.data": "Datos",
+      "preferences.deleteLocalData": "Eliminar datos locales",
       "preferences.about": "Acerca de",
+      "deleteData.title": "Eliminar datos locales",
+      "deleteData.question": "\u00bfRealmente quieres eliminar todos los datos guardados localmente en tu navegador?",
+      "deleteData.yes": "S\u00ed",
+      "deleteData.backupAndDelete": "Hacer copia y eliminar",
+      "deleteData.no": "No",
       "theme.defaultGradient": "Morning Fog",
       "theme.midnightFog": "Midnight Fog",
       "theme.emberCoast": "Ember Coast",
@@ -356,7 +383,10 @@
       "storage.saving": "Guardando\u2026",
       "storage.saved": "Guardado localmente",
       "storage.rejectedEdit": "El almacenamiento del navegador rechaz\u00f3 este cambio. No se guard\u00f3.",
-      "storage.unreadableEdit": "Este cambio no se guard\u00f3. Restaura una copia v\u00e1lida para sustituir el almacenamiento ilegible."
+      "storage.unreadableEdit": "Este cambio no se guard\u00f3. Restaura una copia v\u00e1lida para sustituir el almacenamiento ilegible.",
+      "storage.deleted": "Datos locales eliminados",
+      "storage.unavailableDelete": "El almacenamiento del navegador no est\u00e1 disponible. Los datos locales no se eliminaron.",
+      "storage.rejectedDelete": "El almacenamiento del navegador rechaz\u00f3 la eliminaci\u00f3n. Los datos locales no se eliminaron."
     },
     fr: {
       "app.name": "Feuille de temps",
@@ -402,7 +432,14 @@
       "preferences.workDays": "Jours travaill\u00e9s",
       "preferences.workDayStart": "Premier jour travaill\u00e9",
       "preferences.workDayEnd": "Dernier jour travaill\u00e9",
+      "preferences.data": "Donn\u00e9es",
+      "preferences.deleteLocalData": "Supprimer les donn\u00e9es locales",
       "preferences.about": "\u00c0 propos",
+      "deleteData.title": "Supprimer les donn\u00e9es locales",
+      "deleteData.question": "Voulez-vous vraiment supprimer toutes les donn\u00e9es enregistr\u00e9es localement dans votre navigateur ?",
+      "deleteData.yes": "Oui",
+      "deleteData.backupAndDelete": "Sauvegarder et supprimer",
+      "deleteData.no": "Non",
       "theme.defaultGradient": "Morning Fog",
       "theme.midnightFog": "Midnight Fog",
       "theme.emberCoast": "Ember Coast",
@@ -459,7 +496,10 @@
       "storage.saving": "Enregistrement\u2026",
       "storage.saved": "Enregistr\u00e9 localement",
       "storage.rejectedEdit": "Le stockage du navigateur a refus\u00e9 cette modification. Elle n'a pas \u00e9t\u00e9 enregistr\u00e9e.",
-      "storage.unreadableEdit": "Cette modification n'a pas \u00e9t\u00e9 enregistr\u00e9e. Restaurez une sauvegarde valide pour remplacer le stockage illisible."
+      "storage.unreadableEdit": "Cette modification n'a pas \u00e9t\u00e9 enregistr\u00e9e. Restaurez une sauvegarde valide pour remplacer le stockage illisible.",
+      "storage.deleted": "Donn\u00e9es locales supprim\u00e9es",
+      "storage.unavailableDelete": "Le stockage du navigateur n'est pas disponible. Les donn\u00e9es locales n'ont pas \u00e9t\u00e9 supprim\u00e9es.",
+      "storage.rejectedDelete": "Le stockage du navigateur a refus\u00e9 la suppression. Les donn\u00e9es locales n'ont pas \u00e9t\u00e9 supprim\u00e9es."
     }
   };
   var LANGUAGES = LANGUAGE_METADATA.map(function (metadata) {
