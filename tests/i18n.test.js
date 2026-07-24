@@ -39,6 +39,11 @@
     equal(i18n.translate("fr", "action.preferences"), "Pr\u00e9f\u00e9rences");
     equal(i18n.translate("fr", "theme.midnightFog"), "Midnight Fog");
     equal(i18n.translate("de", "summary.decimalHours", { hours: "96" }), "96 h dezimal");
+    equal(i18n.translate("en", "preferences.timeLedger"), "Time ledger");
+    equal(i18n.translate("de", "preferences.workDays"), "Arbeitstage");
+    equal(i18n.translate("es", "range.separator"), "a");
+    equal(i18n.translate("fr", "schedule.eachWorkDay", { hours: "6" }),
+      "6 h par jour travaill\u00e9");
     equal(i18n.translate("en", "storage.saving"), "Saving\u2026");
     equal(i18n.translate("de", "storage.saving"), "Wird gespeichert\u2026");
     equal(i18n.translate("es", "storage.saving"), "Guardando\u2026");

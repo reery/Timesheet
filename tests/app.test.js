@@ -394,16 +394,21 @@
         var dateFormatSelect = documentUnderTest.getElementById("dateFormatSelect");
         var languageSelect = documentUnderTest.getElementById("languageSelect");
         var themeSelect = documentUnderTest.getElementById("themeSelect");
+        var workDayStartSelect = documentUnderTest.getElementById("workDayStartSelect");
+        var workDayEndSelect = documentUnderTest.getElementById("workDayEndSelect");
         var themePreview = dialog.querySelector(".theme-preview");
         var preferencesButton = documentUnderTest.getElementById("settingsButton");
         var repositoryLink = dialog.querySelector(".about-details a");
+        var settingsSections;
+        var sectionHeading;
+        var settingLabel;
         var todayTime;
         var firstWeek;
         var firstWeekRange;
 
         assert(documentUnderTest.querySelector("[data-brand-icon]"), "brand should include a timetable icon");
         equal(documentUnderTest.querySelector(".brand-line h1").textContent, "Timesheet");
-        equal(documentUnderTest.querySelector("[data-app-version]").textContent, "v0.5");
+        equal(documentUnderTest.querySelector("[data-app-version]").textContent, "v0.6");
         equal(preferencesButton.textContent.trim(), "Preferences");
         equal(documentUnderTest.body.textContent.indexOf("Settings"), -1);
         click("menuButton");
@@ -413,9 +418,39 @@
         equal(documentUnderTest.getElementById("menuButton").getAttribute("aria-expanded"), "false");
         equal(documentUnderTest.getElementById("settingsTitle").textContent, "Preferences");
         equal(documentUnderTest.querySelector('label[for="themeSelect"]').textContent, "Theme");
+        settingsSections = dialog.querySelectorAll(".settings-section");
+        sectionHeading = settingsSections[0].querySelector("h3");
+        settingLabel = settingsSections[0].querySelector("label");
+        equal(settingsSections.length, 3);
+        equal(Array.prototype.map.call(settingsSections, function (section) {
+          return section.querySelector("h3").textContent;
+        }).join(","), "Display,Time ledger,About");
+        assert(parseFloat(frame.contentWindow.getComputedStyle(sectionHeading).fontSize)
+          > parseFloat(frame.contentWindow.getComputedStyle(settingLabel).fontSize),
+        "section headings should be larger than setting labels");
+        equal(frame.contentWindow.getComputedStyle(settingLabel).textAlign, "right");
+        dialog.querySelectorAll(".setting-row").forEach(function (row) {
+          equal(frame.contentWindow.getComputedStyle(row).borderTopWidth, "0px");
+        });
+        equal(frame.contentWindow.getComputedStyle(dialog.querySelector(".settings-dialog-header"))
+          .borderBottomWidth, "1px");
+        equal(frame.contentWindow.getComputedStyle(settingsSections[1]).borderTopWidth, "1px");
+        equal(frame.contentWindow.getComputedStyle(settingsSections[2]).borderTopWidth, "1px");
+        equal(documentUnderTest.getElementById("workDaysLabel").textContent, "Work days");
+        equal(dialog.querySelector(".work-days-separator").textContent, "to");
+        equal(workDayStartSelect.getAttribute("aria-label"), "First work day");
+        equal(workDayEndSelect.getAttribute("aria-label"), "Last work day");
+        equal(Array.prototype.map.call(workDayStartSelect.options, function (option) {
+          return option.value;
+        }).join(","), "1,2,3,4,5,6,0");
+        equal(workDayStartSelect.value, "1");
+        equal(workDayEndSelect.value, "5");
+        assert(workDayStartSelect.getBoundingClientRect().width
+          < dateFormatSelect.getBoundingClientRect().width * 0.55,
+        "work-day selects should be about half the width of a standard select");
         equal(dialog.querySelector(".settings-dialog-header .eyebrow"), null);
         equal(documentUnderTest.getElementById("settingsCloseButton").getAttribute("aria-label"), "Close preferences");
-        equal(documentUnderTest.querySelector("[data-about-version]").textContent, "Timesheet v0.5");
+        equal(documentUnderTest.querySelector("[data-about-version]").textContent, "Timesheet v0.6");
         equal(dialog.querySelector(".about-details p:first-child").textContent, "Local work time tracker.");
         equal(dialog.querySelector(".about-details p:nth-child(2)").textContent, "MIT licence.");
         equal(repositoryLink.textContent, "https://github.com/reery/Timesheet");
@@ -498,6 +533,7 @@
         var languageSelect;
         var themeSelect;
         var themePreview;
+        var workDayStartSelect;
         var morningFogPreview;
         var emberCoastPreview;
         var selectedMonth = Number(currentMonthKey.slice(5, 7)) - 1;
@@ -507,6 +543,7 @@
         click("settingsButton");
         languageSelect = documentUnderTest.getElementById("languageSelect");
         themeSelect = documentUnderTest.getElementById("themeSelect");
+        workDayStartSelect = documentUnderTest.getElementById("workDayStartSelect");
         themePreview = documentUnderTest.querySelector(".theme-preview");
         morningFogPreview = frame.contentWindow.getComputedStyle(themePreview).backgroundImage;
 
@@ -535,6 +572,11 @@
             i18n.translate(language, "column.absence"));
           equal(documentUnderTest.getElementById("monthSelect").options[selectedMonth].textContent,
             calendar.months[selectedMonth]);
+          equal(Array.prototype.map.call(workDayStartSelect.options, function (option) {
+            return option.textContent;
+          }).join(","), [1, 2, 3, 4, 5, 6, 0].map(function (day) {
+            return calendar.weekdays[day];
+          }).join(","));
           equal(firstRow.querySelector(".weekday").textContent,
             calendar.weekdays[firstRowDate.getDay()]);
           equal(documentUnderTest.querySelector(".week-label").textContent,
@@ -572,7 +614,7 @@
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--accent").trim(), "#ff9505");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
-          .getPropertyValue("--weekend-line").trim(), "#ec4e20");
+          .getPropertyValue("--optional-day-line").trim(), "#ec4e20");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--accent-strong").trim(), "#016fb9");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
@@ -596,7 +638,7 @@
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--accent").trim(), "#61b7e5");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
-          .getPropertyValue("--weekend-line").trim(), "#d28b67");
+          .getPropertyValue("--optional-day-line").trim(), "#d28b67");
         assert(frame.contentWindow.getComputedStyle(themePreview).backgroundImage !== morningFogPreview,
           "dark theme preview should differ from Morning Fog");
         assert(frame.contentWindow.getComputedStyle(themePreview).backgroundImage !== emberCoastPreview,
@@ -628,6 +670,100 @@
           equal(reloadedDocument.documentElement.dataset.theme, "default-gradient");
           equal(frame.contentWindow.getComputedStyle(reloadedDocument.documentElement).colorScheme, "light");
           click("settingsCloseButton");
+        });
+      });
+    })
+    .then(function () {
+      return run("persists work days and applies them to styling and targets", function () {
+        var documentUnderTest = getDocument();
+        var appWindow = frame.contentWindow;
+        var core = appWindow.TimesheetCore;
+        var weeks = core.buildMonthWeeks(
+          Number(currentMonthKey.slice(0, 4)),
+          Number(currentMonthKey.slice(5, 7)) - 1
+        );
+        var completedWeekIndex = weeks.findIndex(function (week) {
+          return week.dates.every(function (dateKey) {
+            return core.getMonthKey(dateKey) === currentMonthKey;
+          }) && week.dates[6] <= todayKey;
+        });
+        var saturdayRow = Array.prototype.find.call(
+          documentUnderTest.querySelectorAll(".day-row"),
+          function (row) {
+            return core.getMonthKey(row.dataset.date) === currentMonthKey
+              && core.parseIsoDate(row.dataset.date).getDay() === 6;
+          }
+        );
+        var tuesdayRow = Array.prototype.find.call(
+          documentUnderTest.querySelectorAll(".day-row"),
+          function (row) {
+            return core.getMonthKey(row.dataset.date) === currentMonthKey
+              && core.parseIsoDate(row.dataset.date).getDay() === 2;
+          }
+        );
+        var startSelect;
+        var endSelect;
+
+        assert(completedWeekIndex >= 0, "test month should contain a completed full week");
+        equal(saturdayRow.classList.contains("is-optional-day"), true);
+        equal(tuesdayRow.classList.contains("is-optional-day"), false);
+
+        click("menuButton");
+        click("settingsButton");
+        startSelect = documentUnderTest.getElementById("workDayStartSelect");
+        endSelect = documentUnderTest.getElementById("workDayEndSelect");
+        startSelect.value = "5";
+        startSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        endSelect.value = "1";
+        endSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+        equal(JSON.stringify(appWindow.TimesheetApp.getState().preferences.workDayRange),
+          JSON.stringify({ start: 5, end: 1 }));
+        saturdayRow = documentUnderTest.querySelector('[data-date="' + saturdayRow.dataset.date + '"]');
+        tuesdayRow = documentUnderTest.querySelector('[data-date="' + tuesdayRow.dataset.date + '"]');
+        equal(saturdayRow.classList.contains("is-optional-day"), false);
+        equal(tuesdayRow.classList.contains("is-optional-day"), true);
+        equal(documentUnderTest.getElementById("dailyTarget").textContent,
+          "8 h each work day");
+
+        setWeeklyHours(42);
+        startSelect.value = "1";
+        startSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        endSelect.value = "0";
+        endSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+        equal(documentUnderTest.querySelectorAll(".day-row.is-optional-day").length, 0);
+        equal(documentUnderTest.getElementById("dailyTarget").textContent,
+          "6 h each work day");
+        equal(documentUnderTest.querySelector(
+          '.week-summary[data-week-index="' + completedWeekIndex + '"] [data-week-target]'
+        ).textContent, "42h expected");
+        click("settingsCloseButton");
+
+        return reloadFrame().then(function () {
+          var reloadedDocument = getDocument();
+          var reloadedState = frame.contentWindow.TimesheetApp.getState();
+
+          equal(JSON.stringify(reloadedState.preferences.workDayRange),
+            JSON.stringify({ start: 1, end: 0 }));
+          equal(reloadedState.schedules[currentMonthKey], 42);
+          equal(reloadedDocument.getElementById("workDayStartSelect").value, "1");
+          equal(reloadedDocument.getElementById("workDayEndSelect").value, "0");
+          equal(reloadedDocument.getElementById("dailyTarget").textContent,
+            "6 h each work day");
+
+          setWeeklyHours(32);
+          click("menuButton");
+          click("settingsButton");
+          endSelect = reloadedDocument.getElementById("workDayEndSelect");
+          endSelect.value = "5";
+          endSelect.dispatchEvent(new Event("change", { bubbles: true }));
+          click("settingsCloseButton");
+
+          equal(JSON.stringify(frame.contentWindow.TimesheetApp.getState().preferences.workDayRange),
+            JSON.stringify({ start: 1, end: 5 }));
+          equal(frame.contentWindow.TimesheetApp.getState().schedules[currentMonthKey], 32);
+          equal(reloadedDocument.querySelectorAll(".day-row.is-optional-day").length > 0, true);
         });
       });
     })
@@ -982,7 +1118,7 @@
         var nextMonthKey = frame.contentWindow.TimesheetCore.shiftMonthKey(currentMonthKey, 1);
 
         setWeeklyHours(35);
-        equal(getDocument().getElementById("dailyTarget").textContent, "7 h each weekday");
+        equal(getDocument().getElementById("dailyTarget").textContent, "7 h each work day");
 
         click("nextMonth");
         equal(frame.contentWindow.TimesheetApp.getViewMonth(), nextMonthKey);
@@ -1016,7 +1152,7 @@
           ["3", "31", "31.5"].forEach(setWeeklyHours);
 
           equal(appWindow.TimesheetApp.getState().schedules[appWindow.TimesheetApp.getViewMonth()], 31.5);
-          equal(documentUnderTest.getElementById("dailyTarget").textContent, "6.3 h each weekday");
+          equal(documentUnderTest.getElementById("dailyTarget").textContent, "6.3 h each work day");
           equal(documentUnderTest.querySelector("[data-status-text]").textContent, "Saving\u2026");
           equal(writeCount, 0);
 
@@ -1279,14 +1415,25 @@
           assert(bounds.height >= 44, "preferences control should retain a 44px touch target");
         });
         dialog.querySelectorAll(".setting-row").forEach(function (row) {
-          var label = row.querySelector("label");
+          var label = row.querySelector("label, .setting-label");
           var labelBounds = label.getBoundingClientRect();
           var selectBounds = row.querySelector("select").getBoundingClientRect();
 
           assert(labelBounds.bottom <= selectBounds.top,
             "preference label should sit above its select at the minimum width");
           equal(frame.contentWindow.getComputedStyle(label).whiteSpace, "nowrap");
+          equal(frame.contentWindow.getComputedStyle(label).textAlign, "left");
         });
+        var workDaysControl = dialog.querySelector(".work-days-control");
+        var workDaySelects = workDaysControl.querySelectorAll("select");
+        var workDaysBounds = workDaysControl.getBoundingClientRect();
+        assert(workDaysBounds.left >= dialogBounds.left,
+          "work-day control extends left of preferences dialog");
+        assert(workDaysBounds.right <= dialogBounds.right,
+          "work-day control extends right of preferences dialog");
+        assert(Math.abs(workDaySelects[0].getBoundingClientRect().width
+          - workDaySelects[1].getBoundingClientRect().width) < 1,
+        "work-day selects should share the available width equally");
         languageSelect.value = "de";
         languageSelect.dispatchEvent(new Event("change", { bubbles: true }));
         var menuBounds = documentUnderTest.getElementById("menuButton").getBoundingClientRect();

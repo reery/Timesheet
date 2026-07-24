@@ -202,8 +202,8 @@
       var messageId = "message-" + dateKey;
       var weekdayName = i18n.getCalendar(state.preferences.language).weekdays[day];
 
-      if (day === 0 || day === 6) {
-        classes.push("is-weekend");
+      if (!core.isWorkDay(dateKey, state.preferences.workDayRange)) {
+        classes.push("is-optional-day");
       }
       if (core.getMonthKey(dateKey) !== selectedMonthKey) {
         classes.push("is-adjacent");
@@ -286,7 +286,8 @@
             dateKey,
             state.entries[dateKey],
             state.schedules,
-            todayKey
+            todayKey,
+            state.preferences.workDayRange
           );
         }
 
@@ -405,17 +406,21 @@
     }
 
     function updateScheduleSummary() {
+      var state = options.getState();
+      var workDayRange = state.preferences.workDayRange;
       var weeklyHours = core.getEffectiveWeeklyHours(
         core.getMonthKey(viewDate),
-        options.getState().schedules
+        state.schedules
       );
-      var weekdayKey = core.getMonthDateKeys(
+      var workDayKey = core.getMonthDateKeys(
         viewDate.getFullYear(),
         viewDate.getMonth()
-      ).find(core.isWeekday);
-      var dailyMinutes = core.getDailyTargetMinutes(weekdayKey, weeklyHours);
+      ).find(function (dateKey) {
+        return core.isWorkDay(dateKey, workDayRange);
+      });
+      var dailyMinutes = core.getDailyTargetMinutes(workDayKey, weeklyHours, workDayRange);
 
-      elements.dailyTarget.textContent = options.translate("schedule.eachWeekday", {
+      elements.dailyTarget.textContent = options.translate("schedule.eachWorkDay", {
         hours: core.formatDecimalHours(dailyMinutes)
       });
     }

@@ -194,6 +194,78 @@
     equal(core.getDailyTargetMinutes("2026-07-18", 32), 0);
   });
 
+  test("validates and counts inclusive cyclic work-day ranges", function () {
+    equal(core.isValidWorkDayRange({ start: 1, end: 5 }), true);
+    equal(core.isValidWorkDayRange({ start: 0, end: 6 }), true);
+    equal(core.isValidWorkDayRange({ start: -1, end: 5 }), false);
+    equal(core.isValidWorkDayRange({ start: 1, end: 7 }), false);
+    equal(core.isValidWorkDayRange({ start: 1 }), false);
+    equal(core.isValidWorkDayRange(null), false);
+    equal(core.getWorkDayCount({ start: 0, end: 5 }), 6);
+    equal(core.getWorkDayCount({ start: 5, end: 1 }), 4);
+    equal(core.getWorkDayCount({ start: 3, end: 3 }), 1);
+    equal(core.getWorkDayCount({ start: 1, end: 0 }), 7);
+  });
+
+  test("identifies work days in forward ranges that cross Sunday", function () {
+    var sundayToFriday = { start: 0, end: 5 };
+    var fridayToMonday = { start: 5, end: 1 };
+
+    equal(core.isWorkDay("2026-07-19", sundayToFriday), true);
+    equal(core.isWorkDay("2026-07-18", sundayToFriday), false);
+    equal(core.isWorkDay("2026-07-17", fridayToMonday), true);
+    equal(core.isWorkDay("2026-07-18", fridayToMonday), true);
+    equal(core.isWorkDay("2026-07-19", fridayToMonday), true);
+    equal(core.isWorkDay("2026-07-13", fridayToMonday), true);
+    equal(core.isWorkDay("2026-07-14", fridayToMonday), false);
+  });
+
+  test("distributes 42 weekly hours evenly across all seven days", function () {
+    var allDays = { start: 1, end: 0 };
+    var dates = [
+      "2026-07-13", "2026-07-14", "2026-07-15", "2026-07-16",
+      "2026-07-17", "2026-07-18", "2026-07-19"
+    ];
+    var summary = core.summarizeDates(
+      dates,
+      {},
+      { "2026-07": 42 },
+      "2026-07-19",
+      allDays
+    );
+
+    dates.forEach(function (dateKey) {
+      equal(core.getDailyTargetMinutes(dateKey, 42, allDays), 360);
+    });
+    equal(summary.expectedMinutes, 2520);
+    equal(summary.plannedMinutes, 2520);
+    equal(summary.balanceMinutes, -2520);
+  });
+
+  test("uses the selected range for weekend absences and optional weekday work", function () {
+    var fridayToMonday = { start: 5, end: 1 };
+    var saturdayAbsence = core.getDaySummary(
+      "2026-07-18",
+      { absence: true },
+      { "2026-07": 32 },
+      "2026-07-18",
+      fridayToMonday
+    );
+    var tuesdayWork = core.getDaySummary(
+      "2026-07-14",
+      { start: "09:00", finish: "12:00" },
+      { "2026-07": 32 },
+      "2026-07-14",
+      fridayToMonday
+    );
+
+    equal(saturdayAbsence.targetMinutes, 480);
+    equal(saturdayAbsence.workedMinutes, 480);
+    equal(saturdayAbsence.balanceMinutes, 0);
+    equal(tuesdayWork.targetMinutes, 0);
+    equal(tuesdayWork.balanceMinutes, 180);
+  });
+
   test("credits an absence with the weekday target and ignores preserved times", function () {
     var day = core.getDaySummary(
       "2026-07-20",

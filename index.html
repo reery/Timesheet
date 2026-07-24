@@ -30,7 +30,7 @@
             </svg>
           </span>
           <h1 data-i18n="app.name">Timesheet</h1>
-          <span class="app-version" data-app-version>v0.5</span>
+          <span class="app-version" data-app-version>v0.6</span>
         </div>
       </div>
 
@@ -174,9 +174,22 @@
         </div>
       </section>
 
+      <section class="settings-section" aria-labelledby="timeLedgerSettingsHeading">
+        <h3 id="timeLedgerSettingsHeading" data-i18n="preferences.timeLedger">Time ledger</h3>
+
+        <div class="setting-row">
+          <span id="workDaysLabel" class="setting-label" data-i18n="preferences.workDays">Work days</span>
+          <div class="work-days-control" role="group" aria-labelledby="workDaysLabel">
+            <select id="workDayStartSelect" aria-label="First work day" data-i18n-aria-label="preferences.workDayStart"></select>
+            <span class="work-days-separator" data-i18n="range.separator">to</span>
+            <select id="workDayEndSelect" aria-label="Last work day" data-i18n-aria-label="preferences.workDayEnd"></select>
+          </div>
+        </div>
+      </section>
+
       <section class="settings-section about-section" aria-labelledby="aboutHeading">
         <h3 id="aboutHeading" data-i18n="preferences.about">About</h3>
-        <p class="about-product" data-about-version>Timesheet v0.5</p>
+        <p class="about-product" data-about-version>Timesheet v0.6</p>
         <div class="about-details">
           <p data-i18n="about.localTracker">Local work time tracker.</p>
           <p data-i18n="about.license">MIT licence.</p>

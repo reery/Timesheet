@@ -55,7 +55,7 @@ The project uses classic deferred scripts so it can run directly from `file://` 
 
 Business rules and period constraints belong in `core.js`, persisted-data rules and collection limits in `model.js`, browser transport in `storage.js`, and DOM behavior in the relevant controller. `app.js` should remain the composition root rather than accumulating feature logic.
 
-The application release is v0.5. Persisted state remains on `local-timesheet.state.v1` and schema version 1, so existing v0.4 data and backups remain compatible. Backups wrap the same state in a `local-timesheet-backup` envelope. Changes to required persisted fields must remain backward compatible or introduce an explicit schema migration.
+The application release is v0.6. Persisted state remains on `local-timesheet.state.v1` and schema version 1, so existing v0.5 data and backups remain compatible. Backups wrap the same state in a `local-timesheet-backup` envelope. Changes to required persisted fields must remain backward compatible or introduce an explicit schema migration.
 
 ## Extending
 

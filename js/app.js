@@ -5,7 +5,7 @@
   var themes = root.TimesheetThemes;
   var model = root.TimesheetModel;
   var storageApi = root.TimesheetStorage;
-  var APP_VERSION = "v0.5";
+  var APP_VERSION = "v0.6";
   var SAVE_DELAY_MS = 250;
   var browserStorage = storageApi.getBrowserStorage();
   var storageKey = getStorageKey();
@@ -60,6 +60,7 @@
       "saveStatus", "restoreInput", "settingsButton",
       "menuButton", "headerActions", "settingsDialog", "settingsCloseButton",
       "dateFormatSelect", "languageSelect", "themeSelect",
+      "workDayStartSelect", "workDayEndSelect",
       "previousMonth", "monthSelect", "yearInput", "nextMonth", "todayButton",
       "weeklyHours", "scheduleMessage", "dailyTarget",
       "monthWorked", "monthWorkedDecimal",
@@ -93,7 +94,9 @@
         closeButton: elements.settingsCloseButton,
         dateFormatSelect: elements.dateFormatSelect,
         languageSelect: elements.languageSelect,
-        themeSelect: elements.themeSelect
+        themeSelect: elements.themeSelect,
+        workDayStartSelect: elements.workDayStartSelect,
+        workDayEndSelect: elements.workDayEndSelect
       },
       getPreferences: function () {
         return state.preferences;
@@ -104,7 +107,8 @@
       },
       onDateFormatChange: onDateFormatChange,
       onLanguageChange: onLanguageChange,
-      onThemeChange: onThemeChange
+      onThemeChange: onThemeChange,
+      onWorkDayRangeChange: onWorkDayRangeChange
     });
     preferencesController.initialize();
   }
@@ -249,6 +253,15 @@
     applyTheme();
     preferencesController.sync();
     persistState();
+  }
+
+  function onWorkDayRangeChange(workDayRange) {
+    state.preferences.workDayRange = {
+      start: workDayRange.start,
+      end: workDayRange.end
+    };
+    persistState();
+    ledgerController.render();
   }
 
   function setStatus(key, tone, parameters, fallback) {

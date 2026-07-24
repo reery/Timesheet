@@ -44,7 +44,8 @@
     return {
       language: i18n.DEFAULT_LANGUAGE,
       theme: themes.DEFAULT_THEME,
-      dateFormat: core.DATE_FORMATS.ISO
+      dateFormat: core.DATE_FORMATS.ISO,
+      workDayRange: cloneWorkDayRange(core.DEFAULT_WORK_DAY_RANGE)
     };
   }
 
@@ -109,20 +110,30 @@
     }));
   }
 
+  function cloneWorkDayRange(workDayRange) {
+    var source = core.isValidWorkDayRange(workDayRange)
+      ? workDayRange
+      : core.DEFAULT_WORK_DAY_RANGE;
+
+    return { start: source.start, end: source.end };
+  }
+
   function clonePreferences(preferences) {
     var source = preferences || createDefaultPreferences();
 
     return {
       language: source.language,
       theme: hasOwn(source, "theme") ? source.theme : source[LEGACY_THEME_FIELD],
-      dateFormat: source.dateFormat
+      dateFormat: source.dateFormat,
+      workDayRange: cloneWorkDayRange(source.workDayRange)
     };
   }
 
   function toPersistedState(state) {
     var preferences = {
       language: state.preferences.language,
-      dateFormat: state.preferences.dateFormat
+      dateFormat: state.preferences.dateFormat,
+      workDayRange: cloneWorkDayRange(state.preferences.workDayRange)
     };
 
     preferences[LEGACY_THEME_FIELD] = state.preferences.theme;
@@ -160,6 +171,7 @@
     var entryKeys;
     var scheduleKeys;
     var theme;
+    var workDayRange;
 
     if (!isPlainObject(candidate)) {
       return invalid("The saved data is not an object.", "storage.invalid.object");
@@ -200,17 +212,22 @@
       theme = hasOwn(candidate.preferences, "theme")
         ? candidate.preferences.theme
         : candidate.preferences[LEGACY_THEME_FIELD];
+      workDayRange = hasOwn(candidate.preferences, "workDayRange")
+        ? candidate.preferences.workDayRange
+        : core.DEFAULT_WORK_DAY_RANGE;
 
       if (!i18n.isSupportedLanguage(candidate.preferences.language)
           || !themes.isSupportedTheme(theme)
-          || !core.isSupportedDateFormat(candidate.preferences.dateFormat)) {
+          || !core.isSupportedDateFormat(candidate.preferences.dateFormat)
+          || !core.isValidWorkDayRange(workDayRange)) {
         return invalid("The saved preferences are invalid.", "storage.invalid.preferences");
       }
 
       normalized.preferences = {
         language: candidate.preferences.language,
         theme: theme,
-        dateFormat: candidate.preferences.dateFormat
+        dateFormat: candidate.preferences.dateFormat,
+        workDayRange: cloneWorkDayRange(workDayRange)
       };
     }
 
