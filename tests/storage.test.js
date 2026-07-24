@@ -11,6 +11,7 @@
   function MemoryStorage() {
     this.values = {};
     this.failWrites = false;
+    this.failRemovals = false;
   }
 
   MemoryStorage.prototype.getItem = function (key) {
@@ -22,6 +23,13 @@
       throw new Error("Write failed");
     }
     this.values[key] = String(value);
+  };
+
+  MemoryStorage.prototype.removeItem = function (key) {
+    if (this.failRemovals) {
+      throw new Error("Removal failed");
+    }
+    delete this.values[key];
   };
 
   function test(name, callback) {
@@ -92,13 +100,22 @@
     state.preferences.language = "es";
     state.preferences.theme = "midnight-fog";
     state.preferences.dateFormat = "day-month-year-dots";
+    state.preferences.workDayRange = { start: 5, end: 1 };
     equal(storageApi.saveState(memory, state).ok, true);
     persisted = JSON.parse(memory.values[storageApi.STORAGE_KEY]);
     equal(persisted.preferences.design, "midnight-fog");
     equal(persisted.preferences.theme, undefined);
+    equal(
+      JSON.stringify(persisted.preferences.workDayRange),
+      JSON.stringify({ start: 5, end: 1 })
+    );
     equal(storageApi.loadState(memory).state.preferences.language, "es");
     equal(storageApi.loadState(memory).state.preferences.theme, "midnight-fog");
     equal(storageApi.loadState(memory).state.preferences.dateFormat, "day-month-year-dots");
+    equal(
+      JSON.stringify(storageApi.loadState(memory).state.preferences.workDayRange),
+      JSON.stringify({ start: 5, end: 1 })
+    );
   });
 
   test("defaults legacy state preferences and rejects invalid settings", function () {
@@ -112,6 +129,10 @@
     equal(model.validateState(legacyState).state.preferences.dateFormat, "iso");
     equal(model.validateState(legacyState).state.preferences.language, "en");
     equal(model.validateState(legacyState).state.preferences.theme, "default-gradient");
+    equal(
+      JSON.stringify(model.validateState(legacyState).state.preferences.workDayRange),
+      JSON.stringify({ start: 1, end: 5 })
+    );
     equal(model.validateState(invalidState).valid, false);
     equal(model.validateState(invalidTheme).valid, false);
     equal(model.validateState(invalidTheme).errorKey, "storage.invalid.preferences");
@@ -156,6 +177,39 @@
     equal(storageApi.saveState(memory, model.createEmptyState()).ok, false);
   });
 
+  test("deletes only the requested storage key", function () {
+    var memory = new MemoryStorage();
+    var customKey = "local-timesheet.test.delete-state";
+    var result;
+
+    memory.setItem(storageApi.STORAGE_KEY, "default state");
+    memory.setItem(customKey, "custom state");
+    memory.setItem("unrelated", "keep me");
+
+    result = storageApi.deleteState(memory, customKey);
+    equal(result.ok, true);
+    equal(result.messageKey, "storage.deleted");
+    equal(memory.getItem(customKey), null);
+    equal(memory.getItem(storageApi.STORAGE_KEY), "default state");
+    equal(memory.getItem("unrelated"), "keep me");
+
+    equal(storageApi.deleteState(memory).ok, true);
+    equal(memory.getItem(storageApi.STORAGE_KEY), null);
+    equal(memory.getItem("unrelated"), "keep me");
+  });
+
+  test("reports failed deletion without changing stored data", function () {
+    var memory = new MemoryStorage();
+
+    memory.setItem(storageApi.STORAGE_KEY, "saved state");
+    memory.failRemovals = true;
+
+    equal(storageApi.deleteState(null).messageKey, "storage.unavailableDelete");
+    equal(storageApi.deleteState(memory).ok, false);
+    equal(storageApi.deleteState(memory).messageKey, "storage.rejectedDelete");
+    equal(memory.getItem(storageApi.STORAGE_KEY), "saved state");
+  });
+
   test("snapshots the previous effective schedule once", function () {
     var state = model.createEmptyState();
     state.schedules["2026-06"] = 32;
@@ -172,6 +226,7 @@
 
     state.entries["2026-07-16"] = entry("900", "1600");
     state.entries["2026-07-16"].absence = true;
+    state.preferences.workDayRange = { start: 0, end: 5 };
     serialized = storageApi.serializeBackup(state, new Date("2026-07-16T12:00:00Z"));
     parsed = storageApi.parseBackup(serialized);
 
@@ -181,8 +236,16 @@
     equal(parsed.includesPreferences, true);
     equal(parsed.state.preferences.dateFormat, "iso");
     equal(parsed.state.preferences.theme, "default-gradient");
+    equal(
+      JSON.stringify(parsed.state.preferences.workDayRange),
+      JSON.stringify({ start: 0, end: 5 })
+    );
     equal(JSON.parse(serialized).data.preferences.design, "default-gradient");
     equal(JSON.parse(serialized).data.preferences.theme, undefined);
+    equal(
+      JSON.stringify(JSON.parse(serialized).data.preferences.workDayRange),
+      JSON.stringify({ start: 0, end: 5 })
+    );
   });
 
   test("legacy backups preserve local preferences when merged", function () {
@@ -201,6 +264,7 @@
     var merged;
 
     local.preferences.dateFormat = "month-day-slash";
+    local.preferences.workDayRange = { start: 5, end: 1 };
     merged = model.mergeStates(local, parsed.state, {
       includePreferences: parsed.includesPreferences
     });
@@ -209,6 +273,10 @@
     equal(parsed.includesPreferences, false);
   equal(parsed.state.entries["2026-07-16"].absence, false);
     equal(merged.preferences.dateFormat, "month-day-slash");
+    equal(
+      JSON.stringify(merged.preferences.workDayRange),
+      JSON.stringify({ start: 5, end: 1 })
+    );
   });
 
   test("current backups replace local preferences when merged", function () {

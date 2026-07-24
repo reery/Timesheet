@@ -30,7 +30,7 @@
             </svg>
           </span>
           <h1 data-i18n="app.name">Timesheet</h1>
-          <span class="app-version" data-app-version>v0.5</span>
+          <span class="app-version" data-app-version>v0.6</span>
         </div>
       </div>
 
@@ -174,9 +174,29 @@
         </div>
       </section>
 
+      <section class="settings-section" aria-labelledby="timeLedgerSettingsHeading">
+        <h3 id="timeLedgerSettingsHeading" data-i18n="preferences.timeLedger">Time ledger</h3>
+
+        <div class="setting-row">
+          <span id="workDaysLabel" class="setting-label" data-i18n="preferences.workDays">Work days</span>
+          <div class="work-days-control" role="group" aria-labelledby="workDaysLabel">
+            <select id="workDayStartSelect" aria-label="First work day" data-i18n-aria-label="preferences.workDayStart"></select>
+            <span class="work-days-separator" data-i18n="range.separator">to</span>
+            <select id="workDayEndSelect" aria-label="Last work day" data-i18n-aria-label="preferences.workDayEnd"></select>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-section" aria-labelledby="dataSettingsHeading">
+        <h3 id="dataSettingsHeading" data-i18n="preferences.data">Data</h3>
+        <div class="settings-action-row">
+          <button id="deleteLocalDataButton" class="button button-danger" type="button" data-i18n="preferences.deleteLocalData">Delete local data</button>
+        </div>
+      </section>
+
       <section class="settings-section about-section" aria-labelledby="aboutHeading">
         <h3 id="aboutHeading" data-i18n="preferences.about">About</h3>
-        <p class="about-product" data-about-version>Timesheet v0.5</p>
+        <p class="about-product" data-about-version>Timesheet v0.6</p>
         <div class="about-details">
           <p data-i18n="about.localTracker">Local work time tracker.</p>
           <p data-i18n="about.license">MIT licence.</p>
@@ -184,6 +204,23 @@
         </div>
       </section>
     </div>
+  </dialog>
+
+  <dialog id="deleteDataDialog" class="settings-dialog delete-data-dialog" aria-labelledby="deleteDataTitle" aria-describedby="deleteDataQuestion">
+    <header class="settings-dialog-header delete-data-dialog-header">
+      <h2 id="deleteDataTitle" data-i18n="deleteData.title">Delete local data</h2>
+    </header>
+
+    <div class="settings-dialog-body delete-data-dialog-body">
+      <p id="deleteDataQuestion" data-i18n="deleteData.question">Do you really want to delete all locally saved data in your browser?</p>
+      <p id="deleteDataError" class="delete-data-error" role="alert" aria-live="assertive" hidden></p>
+    </div>
+
+    <footer class="delete-data-dialog-actions">
+      <button id="confirmDeleteDataButton" class="button button-danger" type="button" data-i18n="deleteData.yes">Yes</button>
+      <button id="backupDeleteDataButton" class="button button-positive" type="button" data-i18n="deleteData.backupAndDelete">Backup and delete</button>
+      <button id="cancelDeleteDataButton" class="button button-secondary" type="button" data-i18n="deleteData.no">No</button>
+    </footer>
   </dialog>
 
   <noscript>This timesheet requires JavaScript to calculate and save entries.</noscript>

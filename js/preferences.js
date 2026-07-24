@@ -26,6 +26,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function (root, core, i18n, themes) {
   "use strict";
 
+  var WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
   function create(options) {
     var elements = options.elements;
 
@@ -39,9 +41,22 @@
       elements.closeButton.addEventListener("click", close);
       elements.dialog.addEventListener("click", onDialogClick);
       elements.dialog.addEventListener("close", onDialogClose);
+      elements.deleteLocalDataButton.addEventListener("click", openDeleteDialog);
+      elements.deleteDataDialog.addEventListener("click", onDeleteDialogClick);
+      elements.deleteDataDialog.addEventListener("keydown", onDeleteDialogKeyDown);
+      elements.deleteDataDialog.addEventListener("close", onDeleteDialogClose);
+      elements.confirmDeleteDataButton.addEventListener("click", function () {
+        runDeleteAction(options.onDeleteLocalData);
+      });
+      elements.backupDeleteDataButton.addEventListener("click", function () {
+        runDeleteAction(options.onBackupAndDelete);
+      });
+      elements.cancelDeleteDataButton.addEventListener("click", closeDeleteDialog);
       elements.dateFormatSelect.addEventListener("change", onDateFormatChange);
       elements.languageSelect.addEventListener("change", onLanguageChange);
       elements.themeSelect.addEventListener("change", onThemeChange);
+      elements.workDayStartSelect.addEventListener("change", onWorkDayRangeChange);
+      elements.workDayEndSelect.addEventListener("change", onWorkDayRangeChange);
     }
 
     function populateLanguageSelect() {
@@ -64,7 +79,22 @@
       });
     }
 
+    function populateWorkDaySelects() {
+      var weekdays = i18n.getCalendar(options.getPreferences().language).weekdays;
+
+      [elements.workDayStartSelect, elements.workDayEndSelect].forEach(function (select) {
+        select.innerHTML = "";
+        WEEKDAY_ORDER.forEach(function (day) {
+          var option = root.document.createElement("option");
+          option.value = String(day);
+          option.textContent = weekdays[day];
+          select.appendChild(option);
+        });
+      });
+    }
+
     function refresh() {
+      populateWorkDaySelects();
       Array.prototype.forEach.call(elements.themeSelect.options, function (option) {
         option.textContent = options.translate(option.dataset.labelKey);
       });
@@ -78,6 +108,8 @@
       elements.languageSelect.value = preferences.language;
       elements.themeSelect.value = preferences.theme;
       elements.themeSelect.dataset.preview = preferences.theme;
+      elements.workDayStartSelect.value = String(preferences.workDayRange.start);
+      elements.workDayEndSelect.value = String(preferences.workDayRange.end);
     }
 
     function open() {
@@ -93,6 +125,43 @@
       }
     }
 
+    function openDeleteDialog() {
+      clearDeleteError();
+      elements.deleteDataDialog.showModal();
+      elements.cancelDeleteDataButton.focus({ preventScroll: true });
+    }
+
+    function closeDeleteDialog() {
+      if (elements.deleteDataDialog.open) {
+        elements.deleteDataDialog.close();
+      }
+    }
+
+    function clearDeleteError() {
+      elements.deleteDataError.hidden = true;
+      elements.deleteDataError.textContent = "";
+    }
+
+    function showDeleteError(result) {
+      var key = result.messageKey || result.errorKey;
+      var parameters = result.messageParams || result.errorParams;
+      var fallback = result.message || result.error;
+
+      elements.deleteDataError.textContent = options.translate(key, parameters, fallback);
+      elements.deleteDataError.hidden = false;
+    }
+
+    function runDeleteAction(action) {
+      var result = action();
+
+      if (result.ok) {
+        closeDeleteDialog();
+        return;
+      }
+
+      showDeleteError(result);
+    }
+
     function onDialogClick(event) {
       if (event.target === elements.dialog) {
         close();
@@ -102,6 +171,27 @@
     function onDialogClose() {
       root.document.body.classList.remove("settings-open");
       options.focusReturn();
+    }
+
+    function onDeleteDialogClick(event) {
+      if (event.target === elements.deleteDataDialog) {
+        closeDeleteDialog();
+      }
+    }
+
+    function onDeleteDialogKeyDown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeDeleteDialog();
+      }
+    }
+
+    function onDeleteDialogClose() {
+      clearDeleteError();
+      if (elements.dialog.open) {
+        elements.deleteLocalDataButton.focus({ preventScroll: true });
+      }
     }
 
     function onDateFormatChange() {
@@ -135,6 +225,20 @@
       }
 
       options.onThemeChange(value);
+    }
+
+    function onWorkDayRangeChange() {
+      var workDayRange = {
+        start: Number(elements.workDayStartSelect.value),
+        end: Number(elements.workDayEndSelect.value)
+      };
+
+      if (!core.isValidWorkDayRange(workDayRange)) {
+        sync();
+        return;
+      }
+
+      options.onWorkDayRangeChange(workDayRange);
     }
 
     return {

@@ -5,7 +5,7 @@
   var themes = root.TimesheetThemes;
   var model = root.TimesheetModel;
   var storageApi = root.TimesheetStorage;
-  var APP_VERSION = "v0.5";
+  var APP_VERSION = "v0.6";
   var SAVE_DELAY_MS = 250;
   var browserStorage = storageApi.getBrowserStorage();
   var storageKey = getStorageKey();
@@ -60,6 +60,9 @@
       "saveStatus", "restoreInput", "settingsButton",
       "menuButton", "headerActions", "settingsDialog", "settingsCloseButton",
       "dateFormatSelect", "languageSelect", "themeSelect",
+      "workDayStartSelect", "workDayEndSelect",
+      "deleteLocalDataButton", "deleteDataDialog", "deleteDataError",
+      "confirmDeleteDataButton", "backupDeleteDataButton", "cancelDeleteDataButton",
       "previousMonth", "monthSelect", "yearInput", "nextMonth", "todayButton",
       "weeklyHours", "scheduleMessage", "dailyTarget",
       "monthWorked", "monthWorkedDecimal",
@@ -93,7 +96,15 @@
         closeButton: elements.settingsCloseButton,
         dateFormatSelect: elements.dateFormatSelect,
         languageSelect: elements.languageSelect,
-        themeSelect: elements.themeSelect
+        themeSelect: elements.themeSelect,
+        workDayStartSelect: elements.workDayStartSelect,
+        workDayEndSelect: elements.workDayEndSelect,
+        deleteLocalDataButton: elements.deleteLocalDataButton,
+        deleteDataDialog: elements.deleteDataDialog,
+        deleteDataError: elements.deleteDataError,
+        confirmDeleteDataButton: elements.confirmDeleteDataButton,
+        backupDeleteDataButton: elements.backupDeleteDataButton,
+        cancelDeleteDataButton: elements.cancelDeleteDataButton
       },
       getPreferences: function () {
         return state.preferences;
@@ -104,7 +115,10 @@
       },
       onDateFormatChange: onDateFormatChange,
       onLanguageChange: onLanguageChange,
-      onThemeChange: onThemeChange
+      onThemeChange: onThemeChange,
+      onWorkDayRangeChange: onWorkDayRangeChange,
+      onDeleteLocalData: deleteLocalData,
+      onBackupAndDelete: backupAndDelete
     });
     preferencesController.initialize();
   }
@@ -251,6 +265,15 @@
     persistState();
   }
 
+  function onWorkDayRangeChange(workDayRange) {
+    state.preferences.workDayRange = {
+      start: workDayRange.start,
+      end: workDayRange.end
+    };
+    persistState();
+    ledgerController.render();
+  }
+
   function setStatus(key, tone, parameters, fallback) {
     currentStatus = {
       key: key,
@@ -337,6 +360,7 @@
     var blob;
     var url;
     var link;
+    var result;
 
     flushPendingState();
 
@@ -353,10 +377,50 @@
       root.setTimeout(function () {
         URL.revokeObjectURL(url);
       }, 0);
-      setStatus("backup.downloaded", "success");
+      result = {
+        ok: true,
+        message: "Backup downloaded",
+        messageKey: "backup.downloaded",
+        messageParams: {}
+      };
     } catch (error) {
-      setStatus("backup.createFailed", "error");
+      result = {
+        ok: false,
+        message: "The backup could not be created.",
+        messageKey: "backup.createFailed",
+        messageParams: {}
+      };
     }
+
+    setDiagnosticStatus(result, result.ok ? "success" : "error");
+    return result;
+  }
+
+  function backupAndDelete() {
+    var backupResult = downloadBackup();
+
+    if (!backupResult.ok) {
+      return backupResult;
+    }
+
+    return deleteLocalData();
+  }
+
+  function deleteLocalData() {
+    var result = storageApi.deleteState(browserStorage, storageKey);
+
+    if (!result.ok) {
+      setDiagnosticStatus(result, "error");
+      return result;
+    }
+
+    clearPendingSave();
+    state = model.createEmptyState();
+    storageWritable = true;
+    applyPreferences();
+    ledgerController.render();
+    setDiagnosticStatus(result, "success");
+    return result;
   }
 
   function restoreBackup() {

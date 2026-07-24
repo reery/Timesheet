@@ -46,8 +46,11 @@
     equal(first.preferences.language, "en");
     equal(first.preferences.theme, "default-gradient");
     equal(first.preferences.dateFormat, "iso");
+    equal(JSON.stringify(first.preferences.workDayRange), JSON.stringify({ start: 1, end: 5 }));
     first.entries.test = {};
+    first.preferences.workDayRange.start = 0;
     equal(second.entries.test, undefined);
+    equal(second.preferences.workDayRange.start, 1);
   });
 
   test("normalizes legacy preferences and absence flags", function () {
@@ -63,6 +66,10 @@
     equal(validation.state.preferences.language, "en");
     equal(validation.state.preferences.theme, "default-gradient");
     equal(validation.state.preferences.dateFormat, "iso");
+    equal(
+      JSON.stringify(validation.state.preferences.workDayRange),
+      JSON.stringify({ start: 1, end: 5 })
+    );
   });
 
   test("normalizes the legacy design preference to theme", function () {
@@ -84,19 +91,31 @@
   test("rejects invalid entries preferences schedules and versions", function () {
     var invalidEntry = model.createEmptyState();
     var invalidPreferences = model.createEmptyState();
+    var invalidWorkDayRange = model.createEmptyState();
     var invalidSchedule = model.createEmptyState();
     var invalidVersion = model.createEmptyState();
 
     invalidEntry.entries["2026-07-16"] = entry("900", "1600");
     invalidEntry.entries["2026-07-16"].absence = "true";
     invalidPreferences.preferences.theme = "unknown";
+    invalidWorkDayRange.preferences.workDayRange = { start: 1, end: 7 };
     invalidSchedule.schedules.invalid = 32;
     invalidVersion.version = 2;
 
     equal(model.validateState(invalidEntry).errorKey, "storage.invalid.entry");
     equal(model.validateState(invalidPreferences).errorKey, "storage.invalid.preferences");
+    equal(model.validateState(invalidWorkDayRange).errorKey, "storage.invalid.preferences");
     equal(model.validateState(invalidSchedule).errorKey, "storage.invalid.schedule");
     equal(model.validateState(invalidVersion).errorKey, "storage.invalid.version");
+  });
+
+  test("rejects partial and coercible work-day ranges", function () {
+    [{ start: 1 }, { start: "1", end: 5 }, null].forEach(function (workDayRange) {
+      var state = model.createEmptyState();
+
+      state.preferences.workDayRange = workDayRange;
+      equal(model.validateState(state).errorKey, "storage.invalid.preferences");
+    });
   });
 
   test("rejects empty and out-of-range persisted keys", function () {
@@ -178,10 +197,12 @@
     local.entries["2026-07-15"] = entry("800", "1200");
     local.entries["2026-07-16"] = entry("900", "1500");
     local.preferences.dateFormat = "month-day-slash";
+    local.preferences.workDayRange = { start: 1, end: 4 };
     imported.entries["2026-07-16"] = entry("900", "1600");
     imported.entries["2026-07-16"].absence = true;
     imported.schedules["2026-07"] = 35;
     imported.preferences.dateFormat = "day-long-month";
+    imported.preferences.workDayRange = { start: 0, end: 5 };
     merged = model.mergeStates(local, imported);
 
     equal(merged.entries["2026-07-15"].start, "800");
@@ -189,6 +210,12 @@
     equal(merged.entries["2026-07-16"].absence, true);
     equal(merged.schedules["2026-07"], 35);
     equal(merged.preferences.dateFormat, "day-long-month");
+    equal(
+      JSON.stringify(merged.preferences.workDayRange),
+      JSON.stringify({ start: 0, end: 5 })
+    );
+    imported.preferences.workDayRange.start = 3;
+    equal(merged.preferences.workDayRange.start, 0);
   });
 
   test("can preserve local preferences while merging legacy data", function () {
@@ -197,10 +224,16 @@
     var merged;
 
     local.preferences.dateFormat = "month-day-slash";
+    local.preferences.workDayRange = { start: 5, end: 1 };
     imported.preferences.dateFormat = "day-long-month";
+    imported.preferences.workDayRange = { start: 0, end: 6 };
     merged = model.mergeStates(local, imported, { includePreferences: false });
 
     equal(merged.preferences.dateFormat, "month-day-slash");
+    equal(
+      JSON.stringify(merged.preferences.workDayRange),
+      JSON.stringify({ start: 5, end: 1 })
+    );
   });
 
   if (failures.length > 0) {

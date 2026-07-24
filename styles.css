@@ -11,8 +11,8 @@
   --accent-strong: #1c2541;
   --accent-action: #1c2541;
   --accent-soft: #e5f3fb;
-  --weekend: #fff2ec;
-  --weekend-line: #ef7b45;
+  --optional-day: #fff2ec;
+  --optional-day-line: #ef7b45;
   --positive: #087a45;
   --positive-soft: #ddf3e7;
   --negative: #b3261e;
@@ -38,7 +38,7 @@
   --adjacent-overlay: rgba(216, 219, 226, 0.62);
   --future-ink: #6b7284;
   --error-row: #fff9f8;
-  --weekend-control: rgba(255, 255, 255, 0.72);
+  --optional-day-control: rgba(255, 255, 255, 0.72);
   --checkbox-mark: #ffffff;
   --radius: 8px;
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -62,8 +62,8 @@ html[data-theme="ember-coast"] {
   --accent-strong: #016fb9;
   --accent-action: #016fb9;
   --accent-soft: #fff0d8;
-  --weekend: #fff3ec;
-  --weekend-line: #ec4e20;
+  --optional-day: #fff3ec;
+  --optional-day-line: #ec4e20;
   --page-gradient: linear-gradient(180deg, rgba(255, 149, 5, 0.24) 0, rgba(236, 78, 32, 0.1) 145px, rgba(247, 248, 251, 0) 310px) 0 0 / 100% 390px no-repeat;
   --focus-ring: rgba(1, 111, 185, 0.34);
   --focus-shadow: rgba(1, 111, 185, 0.18);
@@ -91,8 +91,8 @@ html[data-theme="midnight-fog"] {
   --accent-strong: #8ed1f2;
   --accent-action: #17658f;
   --accent-soft: #193c4e;
-  --weekend: #28282e;
-  --weekend-line: #d28b67;
+  --optional-day: #28282e;
+  --optional-day-line: #d28b67;
   --positive: #78dba7;
   --positive-soft: #173b2c;
   --negative: #ff9d95;
@@ -118,7 +118,7 @@ html[data-theme="midnight-fog"] {
   --adjacent-overlay: rgba(7, 14, 20, 0.5);
   --future-ink: #8fa1ad;
   --error-row: #352329;
-  --weekend-control: rgba(35, 45, 51, 0.94);
+  --optional-day-control: rgba(35, 45, 51, 0.94);
   --checkbox-mark: #0d1721;
 }
 
@@ -312,6 +312,28 @@ a:focus-visible {
   box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.06);
 }
 
+.button-danger,
+.button-positive {
+  color: var(--surface);
+  box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.12);
+}
+
+.button-danger {
+  border-color: var(--negative);
+  background: var(--negative);
+}
+
+.button-positive {
+  border-color: var(--positive);
+  background: var(--positive);
+}
+
+.button-danger:hover,
+.button-positive:hover {
+  filter: brightness(0.94);
+  box-shadow: 0 3px 10px rgba(var(--shadow-rgb), 0.18);
+}
+
 .button-secondary:hover,
 .button-quiet:hover,
 .icon-button:hover {
@@ -329,6 +351,14 @@ a:focus-visible {
 .icon-button:active {
   background: var(--accent-soft);
   box-shadow: none;
+}
+
+.button-danger:active {
+  background: var(--negative);
+}
+
+.button-positive:active {
+  background: var(--positive);
 }
 
 .button:disabled,
@@ -475,31 +505,71 @@ body.settings-open {
 .settings-section h3 {
   margin: 0 0 7px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 750;
   text-transform: uppercase;
+}
+
+.settings-action-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 13px 0 5px;
+}
+
+.delete-data-dialog {
+  width: min(560px, calc(100% - 32px));
+}
+
+.delete-data-dialog-header {
+  justify-content: flex-start;
+}
+
+.delete-data-dialog-body {
+  padding-top: 22px;
+}
+
+.delete-data-dialog-body > p {
+  margin: 0;
+}
+
+.delete-data-error {
+  margin-top: 14px !important;
+  padding: 10px 12px;
+  color: var(--negative);
+  background: var(--negative-soft);
+  border-left: 3px solid var(--negative);
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.delete-data-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 18px 24px 22px;
+  border-top: 1px solid var(--line);
 }
 
 .setting-row {
   display: grid;
   grid-template-columns: minmax(120px, 0.8fr) minmax(210px, 1.35fr);
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-height: 66px;
-  border-top: 1px solid var(--line);
 }
 
-.setting-row:first-of-type {
-  border-top: 0;
-}
-
-.setting-row > label {
+.setting-row > label,
+.setting-row > .setting-label {
   font-size: 14px;
   font-weight: 700;
+  text-align: right;
 }
 
 .setting-row > select,
-.setting-row > .theme-select-control > select {
+.setting-row > .theme-select-control > select,
+.setting-row > .work-days-control > select {
   width: 100%;
   height: 44px;
   min-width: 0;
@@ -512,8 +582,29 @@ body.settings-open {
 }
 
 .setting-row > select:hover:not(:disabled),
-.setting-row > .theme-select-control > select:hover:not(:disabled) {
+.setting-row > .theme-select-control > select:hover:not(:disabled),
+.setting-row > .work-days-control > select:hover:not(:disabled) {
   border-color: var(--accent);
+}
+
+.work-days-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.work-days-control > select {
+  padding-right: 26px;
+  padding-left: 9px;
+}
+
+.work-days-separator {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .setting-row > .theme-select-control {
@@ -954,13 +1045,13 @@ body.settings-open {
   white-space: nowrap;
 }
 
-#timesheetTable .day-row.is-weekend th,
-#timesheetTable .day-row.is-weekend td {
-  background: var(--weekend);
+#timesheetTable .day-row.is-optional-day th,
+#timesheetTable .day-row.is-optional-day td {
+  background: var(--optional-day);
 }
 
-#timesheetTable .day-row.is-weekend .date-cell {
-  box-shadow: inset 3px 0 0 var(--weekend-line), 1px 0 0 var(--line);
+#timesheetTable .day-row.is-optional-day .date-cell {
+  box-shadow: inset 3px 0 0 var(--optional-day-line), 1px 0 0 var(--line);
 }
 
 #timesheetTable .day-row.is-adjacent th,
@@ -969,9 +1060,9 @@ body.settings-open {
   background-image: linear-gradient(var(--adjacent-overlay), var(--adjacent-overlay));
 }
 
-#timesheetTable .day-row.is-adjacent.is-weekend th,
-#timesheetTable .day-row.is-adjacent.is-weekend td {
-  background-color: var(--weekend);
+#timesheetTable .day-row.is-adjacent.is-optional-day th,
+#timesheetTable .day-row.is-adjacent.is-optional-day td {
+  background-color: var(--optional-day);
 }
 
 #timesheetTable .day-row.is-today .date-cell {
@@ -993,9 +1084,9 @@ body.settings-open {
   background-color: var(--error-row);
 }
 
-#timesheetTable .day-row.has-error.is-weekend th,
-#timesheetTable .day-row.has-error.is-weekend td {
-  background-color: var(--weekend);
+#timesheetTable .day-row.has-error.is-optional-day th,
+#timesheetTable .day-row.has-error.is-optional-day td {
+  background-color: var(--optional-day);
 }
 
 #timesheetTable .time-input {
@@ -1012,8 +1103,8 @@ body.settings-open {
   text-align: center;
 }
 
-#timesheetTable .is-weekend .time-input {
-  background: var(--weekend-control);
+#timesheetTable .is-optional-day .time-input {
+  background: var(--optional-day-control);
 }
 
 #timesheetTable .time-input:hover {
@@ -1398,6 +1489,21 @@ noscript {
     padding: 5px 18px 20px;
   }
 
+  .delete-data-dialog-body {
+    padding-top: 18px;
+  }
+
+  .delete-data-dialog-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 16px 18px 18px;
+  }
+
+  .delete-data-dialog-actions .button,
+  .settings-action-row .button {
+    width: 100%;
+  }
+
   .setting-row {
     grid-template-columns: minmax(82px, max-content) minmax(0, 1fr);
     gap: 10px;
@@ -1405,12 +1511,14 @@ noscript {
     padding: 8px 0;
   }
 
-  .setting-row > label {
+  .setting-row > label,
+  .setting-row > .setting-label {
     font-size: 12px;
     white-space: nowrap;
   }
 
-  .setting-row > select {
+  .setting-row > select,
+  .setting-row > .work-days-control > select {
     padding-right: 24px;
     padding-left: 8px;
     font-size: 12px;
@@ -1442,6 +1550,11 @@ noscript {
   .setting-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 5px;
+  }
+
+  .setting-row > label,
+  .setting-row > .setting-label {
+    text-align: left;
   }
 
   .summary-metric {

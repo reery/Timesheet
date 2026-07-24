@@ -394,16 +394,21 @@
         var dateFormatSelect = documentUnderTest.getElementById("dateFormatSelect");
         var languageSelect = documentUnderTest.getElementById("languageSelect");
         var themeSelect = documentUnderTest.getElementById("themeSelect");
+        var workDayStartSelect = documentUnderTest.getElementById("workDayStartSelect");
+        var workDayEndSelect = documentUnderTest.getElementById("workDayEndSelect");
         var themePreview = dialog.querySelector(".theme-preview");
         var preferencesButton = documentUnderTest.getElementById("settingsButton");
         var repositoryLink = dialog.querySelector(".about-details a");
+        var settingsSections;
+        var sectionHeading;
+        var settingLabel;
         var todayTime;
         var firstWeek;
         var firstWeekRange;
 
         assert(documentUnderTest.querySelector("[data-brand-icon]"), "brand should include a timetable icon");
         equal(documentUnderTest.querySelector(".brand-line h1").textContent, "Timesheet");
-        equal(documentUnderTest.querySelector("[data-app-version]").textContent, "v0.5");
+        equal(documentUnderTest.querySelector("[data-app-version]").textContent, "v0.6");
         equal(preferencesButton.textContent.trim(), "Preferences");
         equal(documentUnderTest.body.textContent.indexOf("Settings"), -1);
         click("menuButton");
@@ -413,9 +418,40 @@
         equal(documentUnderTest.getElementById("menuButton").getAttribute("aria-expanded"), "false");
         equal(documentUnderTest.getElementById("settingsTitle").textContent, "Preferences");
         equal(documentUnderTest.querySelector('label[for="themeSelect"]').textContent, "Theme");
+        settingsSections = dialog.querySelectorAll(".settings-section");
+        sectionHeading = settingsSections[0].querySelector("h3");
+        settingLabel = settingsSections[0].querySelector("label");
+        equal(settingsSections.length, 4);
+        equal(Array.prototype.map.call(settingsSections, function (section) {
+          return section.querySelector("h3").textContent;
+        }).join(","), "Display,Time ledger,Data,About");
+        assert(parseFloat(frame.contentWindow.getComputedStyle(sectionHeading).fontSize)
+          > parseFloat(frame.contentWindow.getComputedStyle(settingLabel).fontSize),
+        "section headings should be larger than setting labels");
+        equal(frame.contentWindow.getComputedStyle(settingLabel).textAlign, "right");
+        dialog.querySelectorAll(".setting-row").forEach(function (row) {
+          equal(frame.contentWindow.getComputedStyle(row).borderTopWidth, "0px");
+        });
+        equal(frame.contentWindow.getComputedStyle(dialog.querySelector(".settings-dialog-header"))
+          .borderBottomWidth, "1px");
+        equal(frame.contentWindow.getComputedStyle(settingsSections[1]).borderTopWidth, "1px");
+        equal(frame.contentWindow.getComputedStyle(settingsSections[2]).borderTopWidth, "1px");
+        equal(frame.contentWindow.getComputedStyle(settingsSections[3]).borderTopWidth, "1px");
+        equal(documentUnderTest.getElementById("workDaysLabel").textContent, "Work days");
+        equal(dialog.querySelector(".work-days-separator").textContent, "to");
+        equal(workDayStartSelect.getAttribute("aria-label"), "First work day");
+        equal(workDayEndSelect.getAttribute("aria-label"), "Last work day");
+        equal(Array.prototype.map.call(workDayStartSelect.options, function (option) {
+          return option.value;
+        }).join(","), "1,2,3,4,5,6,0");
+        equal(workDayStartSelect.value, "1");
+        equal(workDayEndSelect.value, "5");
+        assert(workDayStartSelect.getBoundingClientRect().width
+          < dateFormatSelect.getBoundingClientRect().width * 0.55,
+        "work-day selects should be about half the width of a standard select");
         equal(dialog.querySelector(".settings-dialog-header .eyebrow"), null);
         equal(documentUnderTest.getElementById("settingsCloseButton").getAttribute("aria-label"), "Close preferences");
-        equal(documentUnderTest.querySelector("[data-about-version]").textContent, "Timesheet v0.5");
+        equal(documentUnderTest.querySelector("[data-about-version]").textContent, "Timesheet v0.6");
         equal(dialog.querySelector(".about-details p:first-child").textContent, "Local work time tracker.");
         equal(dialog.querySelector(".about-details p:nth-child(2)").textContent, "MIT licence.");
         equal(repositoryLink.textContent, "https://github.com/reery/Timesheet");
@@ -491,6 +527,82 @@
       });
     })
     .then(function () {
+      return run("cancels local data deletion inside preferences", function () {
+        var appWindow = frame.contentWindow;
+        var documentUnderTest = getDocument();
+        var settingsDialog = documentUnderTest.getElementById("settingsDialog");
+        var deleteDialog = documentUnderTest.getElementById("deleteDataDialog");
+        var deleteButton = documentUnderTest.getElementById("deleteLocalDataButton");
+        var yesButton = documentUnderTest.getElementById("confirmDeleteDataButton");
+        var backupButton = documentUnderTest.getElementById("backupDeleteDataButton");
+        var noButton = documentUnderTest.getElementById("cancelDeleteDataButton");
+        var stateBefore = JSON.stringify(appWindow.TimesheetApp.getState());
+        var storedBefore = appWindow.localStorage.getItem(TEST_STORAGE_KEY);
+        var workflow;
+
+        workflow = Promise.resolve().then(function () {
+          click("menuButton");
+          click("settingsButton");
+          equal(deleteButton.textContent, "Delete local data");
+          click("deleteLocalDataButton");
+
+          equal(settingsDialog.open, true);
+          equal(deleteDialog.open, true);
+          equal(deleteDialog.getAttribute("aria-labelledby"), "deleteDataTitle");
+          equal(deleteDialog.getAttribute("aria-describedby"), "deleteDataQuestion");
+          equal(documentUnderTest.getElementById("deleteDataTitle").textContent,
+            "Delete local data");
+          equal(documentUnderTest.getElementById("deleteDataQuestion").textContent,
+            "Do you really want to delete all locally saved data in your browser?");
+          equal(Array.prototype.map.call(
+            deleteDialog.querySelectorAll(".delete-data-dialog-actions button"),
+            function (button) {
+              return button.textContent;
+            }
+          ).join(","), "Yes,Backup and delete,No");
+          equal(yesButton.classList.contains("button-danger"), true);
+          equal(backupButton.classList.contains("button-positive"), true);
+          equal(noButton.classList.contains("button-secondary"), true);
+          assert(documentUnderTest.activeElement === noButton,
+            "No should receive initial confirmation focus");
+
+          click("cancelDeleteDataButton");
+          equal(deleteDialog.open, false);
+          equal(settingsDialog.open, true);
+
+          click("deleteLocalDataButton");
+          deleteDialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+          equal(deleteDialog.open, false);
+          equal(settingsDialog.open, true);
+
+          click("deleteLocalDataButton");
+          noButton.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true
+          }));
+          equal(deleteDialog.open, false);
+          equal(settingsDialog.open, true);
+
+          click("deleteLocalDataButton");
+          deleteDialog.close();
+          equal(settingsDialog.open, true);
+          equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+          equal(appWindow.localStorage.getItem(TEST_STORAGE_KEY), storedBefore);
+          click("settingsCloseButton");
+        });
+
+        return withCleanup(workflow, function () {
+          if (deleteDialog.open) {
+            deleteDialog.close();
+          }
+          if (settingsDialog.open) {
+            settingsDialog.close();
+          }
+        });
+      });
+    })
+    .then(function () {
       return run("translates and persists language and theme preferences", function () {
         var documentUnderTest = getDocument();
         var i18n = frame.contentWindow.TimesheetI18n;
@@ -498,6 +610,7 @@
         var languageSelect;
         var themeSelect;
         var themePreview;
+        var workDayStartSelect;
         var morningFogPreview;
         var emberCoastPreview;
         var selectedMonth = Number(currentMonthKey.slice(5, 7)) - 1;
@@ -507,6 +620,7 @@
         click("settingsButton");
         languageSelect = documentUnderTest.getElementById("languageSelect");
         themeSelect = documentUnderTest.getElementById("themeSelect");
+        workDayStartSelect = documentUnderTest.getElementById("workDayStartSelect");
         themePreview = documentUnderTest.querySelector(".theme-preview");
         morningFogPreview = frame.contentWindow.getComputedStyle(themePreview).backgroundImage;
 
@@ -535,6 +649,11 @@
             i18n.translate(language, "column.absence"));
           equal(documentUnderTest.getElementById("monthSelect").options[selectedMonth].textContent,
             calendar.months[selectedMonth]);
+          equal(Array.prototype.map.call(workDayStartSelect.options, function (option) {
+            return option.textContent;
+          }).join(","), [1, 2, 3, 4, 5, 6, 0].map(function (day) {
+            return calendar.weekdays[day];
+          }).join(","));
           equal(firstRow.querySelector(".weekday").textContent,
             calendar.weekdays[firstRowDate.getDay()]);
           equal(documentUnderTest.querySelector(".week-label").textContent,
@@ -572,7 +691,7 @@
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--accent").trim(), "#ff9505");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
-          .getPropertyValue("--weekend-line").trim(), "#ec4e20");
+          .getPropertyValue("--optional-day-line").trim(), "#ec4e20");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--accent-strong").trim(), "#016fb9");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
@@ -596,7 +715,7 @@
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
           .getPropertyValue("--accent").trim(), "#61b7e5");
         equal(frame.contentWindow.getComputedStyle(documentUnderTest.documentElement)
-          .getPropertyValue("--weekend-line").trim(), "#d28b67");
+          .getPropertyValue("--optional-day-line").trim(), "#d28b67");
         assert(frame.contentWindow.getComputedStyle(themePreview).backgroundImage !== morningFogPreview,
           "dark theme preview should differ from Morning Fog");
         assert(frame.contentWindow.getComputedStyle(themePreview).backgroundImage !== emberCoastPreview,
@@ -628,6 +747,100 @@
           equal(reloadedDocument.documentElement.dataset.theme, "default-gradient");
           equal(frame.contentWindow.getComputedStyle(reloadedDocument.documentElement).colorScheme, "light");
           click("settingsCloseButton");
+        });
+      });
+    })
+    .then(function () {
+      return run("persists work days and applies them to styling and targets", function () {
+        var documentUnderTest = getDocument();
+        var appWindow = frame.contentWindow;
+        var core = appWindow.TimesheetCore;
+        var weeks = core.buildMonthWeeks(
+          Number(currentMonthKey.slice(0, 4)),
+          Number(currentMonthKey.slice(5, 7)) - 1
+        );
+        var completedWeekIndex = weeks.findIndex(function (week) {
+          return week.dates.every(function (dateKey) {
+            return core.getMonthKey(dateKey) === currentMonthKey;
+          }) && week.dates[6] <= todayKey;
+        });
+        var saturdayRow = Array.prototype.find.call(
+          documentUnderTest.querySelectorAll(".day-row"),
+          function (row) {
+            return core.getMonthKey(row.dataset.date) === currentMonthKey
+              && core.parseIsoDate(row.dataset.date).getDay() === 6;
+          }
+        );
+        var tuesdayRow = Array.prototype.find.call(
+          documentUnderTest.querySelectorAll(".day-row"),
+          function (row) {
+            return core.getMonthKey(row.dataset.date) === currentMonthKey
+              && core.parseIsoDate(row.dataset.date).getDay() === 2;
+          }
+        );
+        var startSelect;
+        var endSelect;
+
+        assert(completedWeekIndex >= 0, "test month should contain a completed full week");
+        equal(saturdayRow.classList.contains("is-optional-day"), true);
+        equal(tuesdayRow.classList.contains("is-optional-day"), false);
+
+        click("menuButton");
+        click("settingsButton");
+        startSelect = documentUnderTest.getElementById("workDayStartSelect");
+        endSelect = documentUnderTest.getElementById("workDayEndSelect");
+        startSelect.value = "5";
+        startSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        endSelect.value = "1";
+        endSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+        equal(JSON.stringify(appWindow.TimesheetApp.getState().preferences.workDayRange),
+          JSON.stringify({ start: 5, end: 1 }));
+        saturdayRow = documentUnderTest.querySelector('[data-date="' + saturdayRow.dataset.date + '"]');
+        tuesdayRow = documentUnderTest.querySelector('[data-date="' + tuesdayRow.dataset.date + '"]');
+        equal(saturdayRow.classList.contains("is-optional-day"), false);
+        equal(tuesdayRow.classList.contains("is-optional-day"), true);
+        equal(documentUnderTest.getElementById("dailyTarget").textContent,
+          "8 h each work day");
+
+        setWeeklyHours(42);
+        startSelect.value = "1";
+        startSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        endSelect.value = "0";
+        endSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+        equal(documentUnderTest.querySelectorAll(".day-row.is-optional-day").length, 0);
+        equal(documentUnderTest.getElementById("dailyTarget").textContent,
+          "6 h each work day");
+        equal(documentUnderTest.querySelector(
+          '.week-summary[data-week-index="' + completedWeekIndex + '"] [data-week-target]'
+        ).textContent, "42h expected");
+        click("settingsCloseButton");
+
+        return reloadFrame().then(function () {
+          var reloadedDocument = getDocument();
+          var reloadedState = frame.contentWindow.TimesheetApp.getState();
+
+          equal(JSON.stringify(reloadedState.preferences.workDayRange),
+            JSON.stringify({ start: 1, end: 0 }));
+          equal(reloadedState.schedules[currentMonthKey], 42);
+          equal(reloadedDocument.getElementById("workDayStartSelect").value, "1");
+          equal(reloadedDocument.getElementById("workDayEndSelect").value, "0");
+          equal(reloadedDocument.getElementById("dailyTarget").textContent,
+            "6 h each work day");
+
+          setWeeklyHours(32);
+          click("menuButton");
+          click("settingsButton");
+          endSelect = reloadedDocument.getElementById("workDayEndSelect");
+          endSelect.value = "5";
+          endSelect.dispatchEvent(new Event("change", { bubbles: true }));
+          click("settingsCloseButton");
+
+          equal(JSON.stringify(frame.contentWindow.TimesheetApp.getState().preferences.workDayRange),
+            JSON.stringify({ start: 1, end: 5 }));
+          equal(frame.contentWindow.TimesheetApp.getState().schedules[currentMonthKey], 32);
+          equal(reloadedDocument.querySelectorAll(".day-row.is-optional-day").length > 0, true);
         });
       });
     })
@@ -982,7 +1195,7 @@
         var nextMonthKey = frame.contentWindow.TimesheetCore.shiftMonthKey(currentMonthKey, 1);
 
         setWeeklyHours(35);
-        equal(getDocument().getElementById("dailyTarget").textContent, "7 h each weekday");
+        equal(getDocument().getElementById("dailyTarget").textContent, "7 h each work day");
 
         click("nextMonth");
         equal(frame.contentWindow.TimesheetApp.getViewMonth(), nextMonthKey);
@@ -1016,7 +1229,7 @@
           ["3", "31", "31.5"].forEach(setWeeklyHours);
 
           equal(appWindow.TimesheetApp.getState().schedules[appWindow.TimesheetApp.getViewMonth()], 31.5);
-          equal(documentUnderTest.getElementById("dailyTarget").textContent, "6.3 h each weekday");
+          equal(documentUnderTest.getElementById("dailyTarget").textContent, "6.3 h each work day");
           equal(documentUnderTest.querySelector("[data-status-text]").textContent, "Saving\u2026");
           equal(writeCount, 0);
 
@@ -1279,14 +1492,25 @@
           assert(bounds.height >= 44, "preferences control should retain a 44px touch target");
         });
         dialog.querySelectorAll(".setting-row").forEach(function (row) {
-          var label = row.querySelector("label");
+          var label = row.querySelector("label, .setting-label");
           var labelBounds = label.getBoundingClientRect();
           var selectBounds = row.querySelector("select").getBoundingClientRect();
 
           assert(labelBounds.bottom <= selectBounds.top,
             "preference label should sit above its select at the minimum width");
           equal(frame.contentWindow.getComputedStyle(label).whiteSpace, "nowrap");
+          equal(frame.contentWindow.getComputedStyle(label).textAlign, "left");
         });
+        var workDaysControl = dialog.querySelector(".work-days-control");
+        var workDaySelects = workDaysControl.querySelectorAll("select");
+        var workDaysBounds = workDaysControl.getBoundingClientRect();
+        assert(workDaysBounds.left >= dialogBounds.left,
+          "work-day control extends left of preferences dialog");
+        assert(workDaysBounds.right <= dialogBounds.right,
+          "work-day control extends right of preferences dialog");
+        assert(Math.abs(workDaySelects[0].getBoundingClientRect().width
+          - workDaySelects[1].getBoundingClientRect().width) < 1,
+        "work-day selects should share the available width equally");
         languageSelect.value = "de";
         languageSelect.dispatchEvent(new Event("change", { bubbles: true }));
         var menuBounds = documentUnderTest.getElementById("menuButton").getBoundingClientRect();
@@ -1631,6 +1855,275 @@
         delete restoreInput.files;
         appWindow.FileReader = originalFileReader;
         appWindow.confirm = originalConfirm;
+      });
+    })
+    .then(function () {
+      return run("deletes active local data and cancels pending saves", function () {
+        var appWindow = frame.contentWindow;
+        var storage = appWindow.localStorage;
+        var storageApi = appWindow.TimesheetStorage;
+        var model = appWindow.TimesheetModel;
+        var seeded = model.createEmptyState();
+        var seededEntry = model.createEmptyEntry();
+        var sentinelKey = "local-timesheet.test.delete-sentinel";
+        var seedResult;
+        var workflow;
+
+        seededEntry.start = "800";
+        seededEntry.finish = "1600";
+        seededEntry.absence = true;
+        seeded.entries[entryDateKey] = seededEntry;
+        seeded.schedules[currentMonthKey] = 37;
+        seeded.preferences.language = "fr";
+        seeded.preferences.theme = "midnight-fog";
+        seeded.preferences.dateFormat = "month-day-slash";
+        seeded.preferences.workDayRange = { start: 2, end: 6 };
+        seedResult = storageApi.saveState(storage, seeded, TEST_STORAGE_KEY);
+        assert(seedResult.ok,
+          "direct-delete seed should save: " + seedResult.messageKey + " / " + seedResult.message);
+        storage.setItem(sentinelKey, "keep me");
+
+        workflow = reloadFrame().then(function () {
+          var documentUnderTest = getDocument();
+          var state;
+
+          equal(documentUnderTest.documentElement.lang, "fr");
+          equal(documentUnderTest.documentElement.dataset.theme, "midnight-fog");
+          typeValue(getInput(entryDateKey, "start"), "7");
+          click("menuButton");
+          click("settingsButton");
+          click("deleteLocalDataButton");
+          click("confirmDeleteDataButton");
+
+          state = appWindow.TimesheetApp.getState();
+          assert(!documentUnderTest.getElementById("deleteDataDialog").open,
+            "direct delete should close confirmation");
+          assert(documentUnderTest.getElementById("settingsDialog").open,
+            "direct delete should keep preferences open");
+          equal(appWindow.localStorage.getItem(TEST_STORAGE_KEY), null);
+          equal(appWindow.localStorage.getItem(sentinelKey), "keep me");
+          equal(Object.keys(state.entries).length, 0);
+          equal(Object.keys(state.schedules).length, 0);
+          equal(JSON.stringify(state.preferences),
+            JSON.stringify(appWindow.TimesheetModel.createEmptyState().preferences));
+          equal(documentUnderTest.documentElement.lang, "en");
+          equal(documentUnderTest.documentElement.dataset.theme, "default-gradient");
+          equal(documentUnderTest.getElementById("dateFormatSelect").value, "iso");
+          equal(documentUnderTest.getElementById("workDayStartSelect").value, "1");
+          equal(documentUnderTest.getElementById("workDayEndSelect").value, "5");
+          equal(documentUnderTest.getElementById("weeklyHours").value, "32");
+          equal(getInput(entryDateKey, "start").value, "");
+          equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+            "Local data deleted");
+          equal(documentUnderTest.getElementById("saveStatus").dataset.tone, "success");
+
+          return wait(350);
+        }).then(function () {
+          equal(appWindow.localStorage.getItem(TEST_STORAGE_KEY), null);
+          click("settingsCloseButton");
+        });
+
+        return withCleanup(workflow, function () {
+          var documentUnderTest = getDocument();
+          appWindow.localStorage.removeItem(sentinelKey);
+          if (documentUnderTest.getElementById("deleteDataDialog").open) {
+            documentUnderTest.getElementById("deleteDataDialog").close();
+          }
+          if (documentUnderTest.getElementById("settingsDialog").open) {
+            documentUnderTest.getElementById("settingsDialog").close();
+          }
+        });
+      });
+    })
+    .then(function () {
+      return run("backs up current data before deleting it", function () {
+        var appWindow = frame.contentWindow;
+        var storage = appWindow.localStorage;
+        var seeded = appWindow.TimesheetModel.createEmptyState();
+        var seededEntry = appWindow.TimesheetModel.createEmptyEntry();
+        var seedResult;
+
+        seededEntry.start = "900";
+        seededEntry.finish = "1730";
+        seededEntry.absence = true;
+        seeded.entries[entryDateKey] = seededEntry;
+        seeded.schedules[currentMonthKey] = 35;
+        seeded.preferences.language = "es";
+        seeded.preferences.theme = "ember-coast";
+        seeded.preferences.dateFormat = "day-month-year-dots";
+        seeded.preferences.workDayRange = { start: 0, end: 4 };
+        seedResult = appWindow.TimesheetStorage.saveState(
+          storage,
+          seeded,
+          TEST_STORAGE_KEY
+        );
+        assert(seedResult.ok,
+          "backup-delete seed should save: " + seedResult.messageKey + " / " + seedResult.message);
+
+        return reloadFrame().then(function () {
+          var documentUnderTest = getDocument();
+          var currentStorage = appWindow.localStorage;
+          var storageApi = appWindow.TimesheetStorage;
+          var storagePrototype = Object.getPrototypeOf(currentStorage);
+          var anchorPrototype = appWindow.HTMLAnchorElement.prototype;
+          var originalSerializeBackup = storageApi.serializeBackup;
+          var originalRemoveItem = storagePrototype.removeItem;
+          var originalAnchorClick = anchorPrototype.click;
+          var sequence = [];
+          var backupText = "";
+          var downloadName = "";
+          var workflow;
+
+          storageApi.serializeBackup = function (state) {
+            sequence.push("serialize");
+            backupText = originalSerializeBackup(state);
+            return backupText;
+          };
+          anchorPrototype.click = function () {
+            sequence.push("download");
+            downloadName = this.download;
+          };
+          storagePrototype.removeItem = function (key) {
+            if (key === TEST_STORAGE_KEY) {
+              sequence.push("delete");
+            }
+            return originalRemoveItem.call(this, key);
+          };
+
+          workflow = Promise.resolve().then(function () {
+            var backup;
+
+            click("menuButton");
+            click("settingsButton");
+            click("deleteLocalDataButton");
+            click("backupDeleteDataButton");
+
+            backup = JSON.parse(backupText);
+            equal(sequence.join(","), "serialize,download,delete");
+            equal(downloadName,
+              "timesheet-backup-" + appWindow.TimesheetCore.toIsoDate(new appWindow.Date()) + ".json");
+            equal(backup.data.entries[entryDateKey].finish, "1730");
+            assert(backup.data.entries[entryDateKey].absence,
+              "backup should preserve absence");
+            equal(backup.data.schedules[currentMonthKey], 35);
+            equal(backup.data.preferences.language, "es");
+            equal(backup.data.preferences.design, "ember-coast");
+            equal(backup.data.preferences.dateFormat, "day-month-year-dots");
+            equal(currentStorage.getItem(TEST_STORAGE_KEY), null);
+            equal(documentUnderTest.getElementById("deleteDataDialog").open, false);
+            assert(documentUnderTest.getElementById("settingsDialog").open,
+              "backup delete should keep preferences open");
+            equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+              "Local data deleted");
+            return wait(0);
+          });
+
+          return withCleanup(workflow, function () {
+            storageApi.serializeBackup = originalSerializeBackup;
+            storagePrototype.removeItem = originalRemoveItem;
+            anchorPrototype.click = originalAnchorClick;
+            if (documentUnderTest.getElementById("deleteDataDialog").open) {
+              documentUnderTest.getElementById("deleteDataDialog").close();
+            }
+            if (documentUnderTest.getElementById("settingsDialog").open) {
+              documentUnderTest.getElementById("settingsDialog").close();
+            }
+          });
+        });
+      });
+    })
+    .then(function () {
+      return run("keeps local data when backup or deletion fails", function () {
+        var appWindow = frame.contentWindow;
+        var storage = appWindow.localStorage;
+        var seeded = appWindow.TimesheetModel.createEmptyState();
+        var seededEntry = appWindow.TimesheetModel.createEmptyEntry();
+        var seedResult;
+
+        seededEntry.start = "815";
+        seededEntry.finish = "1645";
+        seeded.entries[entryDateKey] = seededEntry;
+        seeded.schedules[currentMonthKey] = 30;
+        seedResult = appWindow.TimesheetStorage.saveState(
+          storage,
+          seeded,
+          TEST_STORAGE_KEY
+        );
+        assert(seedResult.ok,
+          "failure-path seed should save: " + seedResult.messageKey + " / " + seedResult.message);
+
+        return reloadFrame().then(function () {
+          var documentUnderTest = getDocument();
+          var currentStorage = appWindow.localStorage;
+          var storageApi = appWindow.TimesheetStorage;
+          var storagePrototype = Object.getPrototypeOf(currentStorage);
+          var originalSerializeBackup = storageApi.serializeBackup;
+          var originalRemoveItem = storagePrototype.removeItem;
+          var stateBefore = JSON.stringify(appWindow.TimesheetApp.getState());
+          var storedBefore = currentStorage.getItem(TEST_STORAGE_KEY);
+          var removalCalls = 0;
+          var workflow;
+
+          storageApi.serializeBackup = function () {
+            throw new Error("Backup failed");
+          };
+          storagePrototype.removeItem = function (key) {
+            if (key === TEST_STORAGE_KEY) {
+              removalCalls += 1;
+            }
+            return originalRemoveItem.call(this, key);
+          };
+
+          workflow = Promise.resolve().then(function () {
+            click("menuButton");
+            click("settingsButton");
+            click("deleteLocalDataButton");
+            click("backupDeleteDataButton");
+
+            equal(removalCalls, 0);
+            assert(documentUnderTest.getElementById("deleteDataDialog").open,
+              "backup failure should keep confirmation open");
+            equal(documentUnderTest.getElementById("deleteDataError").hidden, false);
+            equal(documentUnderTest.getElementById("deleteDataError").textContent,
+              "The backup could not be created.");
+            equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+              "The backup could not be created.");
+            equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+            equal(currentStorage.getItem(TEST_STORAGE_KEY), storedBefore);
+
+            storageApi.serializeBackup = originalSerializeBackup;
+            storagePrototype.removeItem = function (key) {
+              if (key === TEST_STORAGE_KEY) {
+                removalCalls += 1;
+                throw new Error("Removal failed");
+              }
+              return originalRemoveItem.call(this, key);
+            };
+            click("confirmDeleteDataButton");
+
+            equal(removalCalls, 1);
+            assert(documentUnderTest.getElementById("deleteDataDialog").open,
+              "removal failure should keep confirmation open");
+            equal(documentUnderTest.getElementById("deleteDataError").textContent,
+              "Browser storage rejected the deletion. Local data was not deleted.");
+            equal(documentUnderTest.querySelector("[data-status-text]").textContent,
+              "Browser storage rejected the deletion. Local data was not deleted.");
+            equal(documentUnderTest.getElementById("saveStatus").dataset.tone, "error");
+            equal(JSON.stringify(appWindow.TimesheetApp.getState()), stateBefore);
+            equal(currentStorage.getItem(TEST_STORAGE_KEY), storedBefore);
+          });
+
+          return withCleanup(workflow, function () {
+            storageApi.serializeBackup = originalSerializeBackup;
+            storagePrototype.removeItem = originalRemoveItem;
+            if (documentUnderTest.getElementById("deleteDataDialog").open) {
+              documentUnderTest.getElementById("deleteDataDialog").close();
+            }
+            if (documentUnderTest.getElementById("settingsDialog").open) {
+              documentUnderTest.getElementById("settingsDialog").close();
+            }
+          });
+        });
       });
     })
     .then(function () {

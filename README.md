@@ -24,7 +24,9 @@ Open `index.html` in a normal browser window. Keep using the same browser profil
 - Changes and calculations appear immediately. Rapid typing is saved to browser `localStorage` after a brief pause; pending edits are flushed when leaving a field, backgrounding the page, or navigating away.
 - **Backup** downloads a JSON copy. **Restore** validates and merges a backup, replacing matching entries while preserving other local dates.
 - Restore accepts files up to 10 MiB and rejects states above 50,000 daily entries or 2,400 monthly schedules before applying them.
-- **Preferences** controls date format, language (English, German, Spanish, or French), and theme.
+- **Preferences** controls date format, language (English, German, Spanish, or French), theme, and local data management.
+- **Delete local data** removes this Timesheet dataset from the browser and resets entries, monthly schedules, and preferences. It does not clear unrelated browser storage.
+- **Backup and delete** first downloads a complete JSON backup of the current data and then performs the same reset. If the backup cannot be created or browser storage rejects deletion, the local data remains in place.
 - On compact screens, app actions move into the hamburger menu.
 
 ## Tests
@@ -55,7 +57,7 @@ The project uses classic deferred scripts so it can run directly from `file://` 
 
 Business rules and period constraints belong in `core.js`, persisted-data rules and collection limits in `model.js`, browser transport in `storage.js`, and DOM behavior in the relevant controller. `app.js` should remain the composition root rather than accumulating feature logic.
 
-The application release is v0.5. Persisted state remains on `local-timesheet.state.v1` and schema version 1, so existing v0.4 data and backups remain compatible. Backups wrap the same state in a `local-timesheet-backup` envelope. Changes to required persisted fields must remain backward compatible or introduce an explicit schema migration.
+The application release is v0.6. Persisted state remains on `local-timesheet.state.v1` and schema version 1, so existing v0.5 data and backups remain compatible. Backups wrap the same state in a `local-timesheet-backup` envelope. Changes to required persisted fields must remain backward compatible or introduce an explicit schema migration.
 
 ## Extending
 

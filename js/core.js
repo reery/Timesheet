@@ -21,6 +21,7 @@
   var AUTOMATIC_BREAK_THRESHOLD_MINUTES = 6 * 60;
   var MINIMUM_BREAK_MINUTES = 30;
   var DEFAULT_WEEKLY_HOURS = 32;
+  var DEFAULT_WORK_DAY_RANGE = { start: 1, end: 5 };
   var MINUTES_PER_HOUR = 60;
   var MIN_YEAR = 1900;
   var MAX_YEAR = 9999;
@@ -429,30 +430,62 @@
     return getEffectiveWeeklyHours(shiftMonthKey(monthKey, -1), schedules, defaultHours);
   }
 
-  function isWeekday(dateKey) {
-    var date = parseIsoDate(dateKey);
-    var day;
+  function isValidWorkDayRange(workDayRange) {
+    return workDayRange !== null
+      && typeof workDayRange === "object"
+      && Number.isInteger(workDayRange.start)
+      && workDayRange.start >= 0
+      && workDayRange.start <= 6
+      && Number.isInteger(workDayRange.end)
+      && workDayRange.end >= 0
+      && workDayRange.end <= 6;
+  }
 
-    if (!date) {
+  function getWorkDayCount(workDayRange) {
+    var range = workDayRange === undefined ? DEFAULT_WORK_DAY_RANGE : workDayRange;
+
+    if (!isValidWorkDayRange(range)) {
+      return 0;
+    }
+
+    return (range.end - range.start + 7) % 7 + 1;
+  }
+
+  function isWorkDay(dateKey, workDayRange) {
+    var date = parseIsoDate(dateKey);
+    var range = workDayRange === undefined ? DEFAULT_WORK_DAY_RANGE : workDayRange;
+    var day;
+    var offset;
+
+    if (!date || !isValidWorkDayRange(range)) {
       return false;
     }
 
     day = date.getDay();
-    return day >= 1 && day <= 5;
+    offset = (day - range.start + 7) % 7;
+    return offset < getWorkDayCount(range);
   }
 
-  function getDailyTargetMinutes(dateKey, weeklyHours) {
-    if (!isWeekday(dateKey) || !isValidWeeklyHours(weeklyHours)) {
+  function isWeekday(dateKey) {
+    return isWorkDay(dateKey, DEFAULT_WORK_DAY_RANGE);
+  }
+
+  function getDailyTargetMinutes(dateKey, weeklyHours, workDayRange) {
+    var workDayCount = getWorkDayCount(workDayRange);
+
+    if (!isWorkDay(dateKey, workDayRange)
+        || !isValidWeeklyHours(weeklyHours)
+        || workDayCount === 0) {
       return 0;
     }
 
-    return Number(weeklyHours) * MINUTES_PER_HOUR / 5;
+    return Number(weeklyHours) * MINUTES_PER_HOUR / workDayCount;
   }
 
-  function getDaySummary(dateKey, entry, schedules, todayKey) {
+  function getDaySummary(dateKey, entry, schedules, todayKey, workDayRange) {
     var cutoff = todayKey || toIsoDate(new Date());
     var weeklyHours = getEffectiveWeeklyHours(getMonthKey(dateKey), schedules);
-    var targetMinutes = getDailyTargetMinutes(dateKey, weeklyHours);
+    var targetMinutes = getDailyTargetMinutes(dateKey, weeklyHours, workDayRange);
     var shift = calculateShift(entry || {});
     var absence = Boolean(entry && entry.absence === true);
     var workedMinutes = absence
@@ -495,14 +528,21 @@
     return summary;
   }
 
-  function summarizeDates(dateKeys, entries, schedules, todayKey) {
+  function summarizeDates(dateKeys, entries, schedules, todayKey, workDayRange) {
     return summarizeDaySummaries(dateKeys.map(function (dateKey) {
-      return getDaySummary(dateKey, entries && entries[dateKey], schedules, todayKey);
+      return getDaySummary(
+        dateKey,
+        entries && entries[dateKey],
+        schedules,
+        todayKey,
+        workDayRange
+      );
     }));
   }
 
   return {
     DEFAULT_WEEKLY_HOURS: DEFAULT_WEEKLY_HOURS,
+    DEFAULT_WORK_DAY_RANGE: Object.assign({}, DEFAULT_WORK_DAY_RANGE),
     MIN_YEAR: MIN_YEAR,
     MAX_YEAR: MAX_YEAR,
     parseTime: parseTime,
@@ -526,6 +566,9 @@
     isValidWeeklyHours: isValidWeeklyHours,
     getEffectiveWeeklyHours: getEffectiveWeeklyHours,
     getInheritedWeeklyHours: getInheritedWeeklyHours,
+    isValidWorkDayRange: isValidWorkDayRange,
+    getWorkDayCount: getWorkDayCount,
+    isWorkDay: isWorkDay,
     isWeekday: isWeekday,
     getDailyTargetMinutes: getDailyTargetMinutes,
     getDaySummary: getDaySummary,
